@@ -305,4 +305,4 @@ const styles = {
   progressTrack: { height: 4, background: COL.panelAlt, borderRadius: 4, overflow: "hidden", marginBottom: 18 },
   progressFill: { height: "100%", background: COL.green, transition: "width 0.2s" },
   footer: { fontSize: 11, color: COL.textDim, textAlign: "center", lineHeight: 1.6, borderTop: `1px solid ${COL.border}`, paddingTop: 14 },
-};a
+};
