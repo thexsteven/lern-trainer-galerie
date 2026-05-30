@@ -10,36 +10,42 @@ erkennt. Kein Eintrag in einer Liste, keine Registrierung – nur Datei ablegen.
 Die Galerie sammelt Trainer mit dieser Zeile in [`src/Gallery.jsx`](../src/Gallery.jsx):
 
 ```js
-const modules = import.meta.glob("./trainers/*/*.jsx");
+const modules = import.meta.glob("./trainers/**/*.jsx");
 ```
 
-Das bedeutet **wortwörtlich**: jede `.jsx`-Datei, die **genau eine Ordnerebene tief**
-unter `src/trainers/` liegt, wird gefunden. Das Muster ist `trainers/<Thema>/<Datei>.jsx`.
+Das bedeutet: jede `.jsx`-Datei unter `src/trainers/` wird gefunden. Die Struktur
+ist **zweistufig** – `trainers/<Kurs>/<Thema>/<Datei>.jsx`:
 
 Aus dem Pfad wird abgeleitet:
 
-| Pfad-Teil      | wird zu        | Beispiel                                              |
-| -------------- | -------------- | ---------------------------------------------------- |
-| **Ordnername** | **Thema**      | `Hashing/` → Gruppe „HASHING" in der Seitenleiste    |
-| **Dateiname**  | **Titel**      | `vl11_hashing_uebersicht.jsx` → „Vl11 Hashing Uebersicht" |
+| Pfad-Teil           | wird zu     | Beispiel                                                  |
+| ------------------- | ----------- | --------------------------------------------------------- |
+| **1. Ordnerebene**  | **Kurs**    | `Theoretische Informatik/` → ruhige Überschrift           |
+| **2. Ordnerebene**  | **Thema**   | `Hashing/` → einklappbare Gruppe „HASHING"                |
+| **Dateiname**       | **Titel**   | `vl11_hashing_uebersicht.jsx` → „Vl11 Hashing Uebersicht" |
 
 Der Titel entsteht durch eine simple Transformation: `_` und `-` werden zu Leerzeichen,
 jeder Wortanfang wird großgeschrieben. Es wird **nichts** aus dem Datei-Inhalt gelesen –
 der Titel kommt **ausschließlich** aus dem Dateinamen.
 
+> **Fallback:** Liegt eine Datei nur eine Ebene tief (`trainers/<Thema>/datei.jsx`),
+> landet sie automatisch im Sammelkurs „Sonstige". Es geht also nie etwas verloren,
+> auch wenn du den Kurs-Ordner mal vergisst.
+
 ---
 
 ## Schritt für Schritt
 
-### 1. Thema (Ordner) wählen oder anlegen
+### 1. Kurs & Thema (Ordner) wählen oder anlegen
 
-Such dir einen passenden Ordner unter `src/trainers/` aus – oder leg einen neuen an.
-**Der Ordnername ist gleichzeitig das Thema.**
+Such dir den passenden **Kurs**-Ordner unter `src/trainers/` aus – oder leg einen
+neuen an – und darin den **Thema**-Ordner. **Die erste Ebene ist der Kurs, die zweite
+das Thema.**
 
 ```
-src/trainers/Sortieren/      ← Thema „Sortieren"
-src/trainers/Hashing/        ← Thema „Hashing"
-src/trainers/Graphen/        ← neues Thema „Graphen" (Ordner einfach neu erstellen)
+src/trainers/Theoretische Informatik/Hashing/        ← Kurs „Theoretische Informatik", Thema „Hashing"
+src/trainers/Theoretische Informatik/Sortier-Algos/  ← gleicher Kurs, Thema „Sortier-Algos"
+src/trainers/Digitaltechnik/Zahlensysteme/           ← neuer Kurs „Digitaltechnik", Thema „Zahlensysteme"
 ```
 
 ### 2. Dateinamen sauber wählen
@@ -63,14 +69,14 @@ nur das `export default`.
 ### 4. Speichern – fertig
 
 Läuft `npm run dev`, erscheint der Trainer **sofort** per Hot-Reload in der Galerie,
-gruppiert unter seinem Thema. (Bei einem **neuen Ordner** kann ein einmaliger Neustart
+gruppiert unter Kurs und Thema. (Bei einem **neuen Ordner** kann ein einmaliger Neustart
 von `npm run dev` nötig sein, damit Vite den neuen Glob-Treffer registriert.)
 
 ---
 
 ## Copy-Paste-Boilerplate
 
-Leg das z. B. als `src/trainers/<DeinThema>/mein_trainer.jsx` ab und bau es um:
+Leg das z. B. als `src/trainers/<DeinKurs>/<DeinThema>/mein_trainer.jsx` ab und bau es um:
 
 ```jsx
 import React, { useState } from "react";
@@ -140,8 +146,8 @@ export default function MeinTrainer() {
 
 | Symptom | Ursache | Lösung |
 | ------- | ------- | ------ |
-| Trainer fehlt komplett | Datei liegt **direkt** in `src/trainers/` (z. B. `src/trainers/foo.jsx`) | In einen **Themen-Unterordner** verschieben: `src/trainers/<Thema>/foo.jsx` |
-| Trainer fehlt komplett | Datei liegt **zu tief** (z. B. `src/trainers/Mathe/Algebra/foo.jsx`) | Der Glob trifft nur **eine** Ebene. Datei eine Ebene höher legen. |
+| Trainer fehlt komplett | Datei liegt **direkt** in `src/trainers/` (z. B. `src/trainers/foo.jsx`) | In einen **Kurs/Thema-Unterordner** verschieben: `src/trainers/<Kurs>/<Thema>/foo.jsx` |
+| Trainer landet im Kurs „Sonstige" | Datei liegt nur **eine** Ebene tief (`src/trainers/<Thema>/foo.jsx`) | Kein Fehler – aber für die saubere Zuordnung in einen Kurs-Ordner legen: `src/trainers/<Kurs>/<Thema>/foo.jsx` |
 | Trainer fehlt komplett | Falsche Endung (`.js`, `.tsx`) | Muss `.jsx` sein – der Glob ist auf `*.jsx` festgelegt. |
 | Neuer Ordner wird ignoriert | Vite hat den neuen Glob-Treffer noch nicht erfasst | `npm run dev` einmal neu starten. |
 | Trainer in Liste, aber **Absturz** beim Öffnen | Kein `export default` | `export default function …` ergänzen. |
@@ -154,7 +160,7 @@ export default function MeinTrainer() {
 ## Faustregel
 
 ```
-src/trainers/<Thema>/<datei>.jsx   +   export default   =   erscheint automatisch
+src/trainers/<Kurs>/<Thema>/<datei>.jsx   +   export default   =   erscheint automatisch
 ```
 
 Mehr ist nicht nötig.

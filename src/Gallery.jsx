@@ -1,33 +1,80 @@
 import React, { useState, useMemo, useEffect, useRef, Suspense } from "react";
 
 /*
-  AUTO-DISCOVERY:
-  Jede .jsx-Datei unter src/trainers/<Thema>/ wird automatisch gefunden.
-  - Ordnername  = Thema (Gruppierung in der Seitenleiste)
-  - Dateiname   = Titel des Trainers
+  AUTO-DISCOVERY (zweistufige Hierarchie: Kurs › Thema › Trainer):
+  Jede .jsx-Datei unter src/trainers/<Kurs>/<Thema>/ wird automatisch gefunden.
+  - 1. Ordnerebene = Kurs  (z. B. „Theoretische Informatik", „Digitaltechnik")
+  - 2. Ordnerebene = Thema (Gruppierung + einklappbar in der Seitenleiste)
+  - Dateiname       = Titel des Trainers
   Neuen Trainer hinzufügen? Einfach eine .jsx mit `export default` in
-  den passenden Themen-Ordner legen. Fertig – Hot-Reload zeigt ihn sofort.
+  src/trainers/<Kurs>/<Thema>/ legen. Fertig – Hot-Reload zeigt ihn sofort.
+
+  Fallback: Liegt eine Datei nur EINE Ebene tief (src/trainers/<Thema>/datei.jsx),
+  landet sie im Kurs „Sonstige" – nichts geht verloren, auch ohne Kurs-Ordner.
 */
 
-const modules = import.meta.glob("./trainers/*/*.jsx");
+const modules = import.meta.glob("./trainers/**/*.jsx");
 
-// Pfade in { thema, titel, key, loader } zerlegen
+const DEFAULT_KURS = "Sonstige";
+
+// Pfade in { kurs, thema, titel, key, loader } zerlegen
 function parseTrainers() {
   const list = Object.entries(modules).map(([path, loader]) => {
-    const m = path.match(/\.\/trainers\/([^/]+)\/([^/]+)\.jsx$/);
-    const thema = m ? m[1] : "Sonstige";
+    const m = path.match(/^\.\/trainers\/(.+)\/([^/]+)\.jsx$/);
+    const dirs = m ? m[1].split("/") : [];
+    // >= 2 Ebenen → Kurs/Thema · genau 1 Ebene → Thema im Default-Kurs
+    const kurs = dirs.length >= 2 ? dirs[0] : DEFAULT_KURS;
+    const thema = dirs.length >= 2 ? dirs[1] : dirs[0] || "Sonstige";
     const datei = m ? m[2] : path;
     const titel = datei
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
-    return { key: path, path, thema, titel, loader };
+    return { key: path, path, kurs, thema, titel, loader };
   });
-  list.sort((a, b) =>
-    a.thema === b.thema
-      ? a.titel.localeCompare(b.titel, "de")
-      : a.thema.localeCompare(b.thema, "de")
+  list.sort(
+    (a, b) =>
+      a.kurs.localeCompare(b.kurs, "de") ||
+      a.thema.localeCompare(b.thema, "de") ||
+      a.titel.localeCompare(b.titel, "de")
   );
   return list;
+}
+
+// Stabiler Schlüssel für ein Thema (Kurs + Thema sind zusammen eindeutig).
+const themaKey = (kurs, thema) => `${kurs}/${thema}`;
+
+// Aus der flachen, vorsortierten Liste eine geordnete Kurs › Thema › Trainer-
+// Struktur bauen. Map bewahrt die Einfügereihenfolge → bleibt alphabetisch.
+function buildTree(list) {
+  const courses = new Map(); // kurs -> Map(thema -> trainer[])
+  for (const t of list) {
+    if (!courses.has(t.kurs)) courses.set(t.kurs, new Map());
+    const themes = courses.get(t.kurs);
+    if (!themes.has(t.thema)) themes.set(t.thema, []);
+    themes.get(t.thema).push(t);
+  }
+  return courses;
+}
+
+// Einklapp-Zustand (Kurse + Themen) über Sessions hinweg merken (gute UX: die
+// Ansicht bleibt beim Neuladen so, wie der Nutzer sie verlassen hat).
+// Getrennte Schlüssel, damit Kurs- und Themen-Klappstatus sich nicht ins
+// Gehege kommen.
+const LS_THEMES = "lt-collapsed-themes";
+const LS_KURSE = "lt-collapsed-kurse";
+function loadCollapsed(storageKey) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+function saveCollapsed(storageKey, set) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify([...set]));
+  } catch {
+    /* localStorage nicht verfügbar – Zustand bleibt nur für die Session */
+  }
 }
 
 // Apple-inspirierte Light-Palette: hell, aber nicht reinweiß.
@@ -171,6 +218,15 @@ const globalStyles = `
   .lt-tile-arrow { transition: transform .22s ease, opacity .22s ease; }
   .lt-tile:hover .lt-tile-arrow { transform: translateX(3px); opacity: 1; }
   .lt-nav { transition: background .15s ease, color .15s ease; }
+  /* Einklappbare Themen: sanfte Höhen-Animation via grid-template-rows (0fr→1fr).
+     Modern, ruckelfrei, ohne feste Höhen messen zu müssen. */
+  .lt-collapse { display: grid; grid-template-rows: 0fr;
+    transition: grid-template-rows .28s cubic-bezier(.25,.8,.25,1); }
+  .lt-collapse.open { grid-template-rows: 1fr; }
+  .lt-collapse > .lt-collapse-inner { overflow: hidden; min-height: 0; }
+  .lt-thema-head .lt-chevron { transition: transform .25s cubic-bezier(.25,.8,.25,1), color .15s ease; }
+  .lt-thema-head[aria-expanded="true"] .lt-chevron { transform: rotate(90deg); }
+  .lt-thema-head:hover .lt-chevron { color: ${C.text2}; }
   @keyframes lt-fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .lt-fade { animation: lt-fade-in .4s cubic-bezier(.25,.8,.25,1) both; }
   @keyframes lt-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
@@ -229,16 +285,49 @@ export default function Gallery() {
   const trainers = useMemo(parseTrainers, []);
   const [active, setActive] = useState(null);
   const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState(() => loadCollapsed(LS_THEMES));
+  const [collapsedKurse, setCollapsedKurse] = useState(() => loadCollapsed(LS_KURSE));
 
+  const q = query.trim().toLowerCase();
   const filtered = trainers.filter(
     (t) =>
-      t.titel.toLowerCase().includes(query.toLowerCase()) ||
-      t.thema.toLowerCase().includes(query.toLowerCase())
+      t.titel.toLowerCase().includes(q) ||
+      t.thema.toLowerCase().includes(q) ||
+      t.kurs.toLowerCase().includes(q)
   );
 
-  // nach Thema gruppieren
-  const grouped = {};
-  for (const t of filtered) (grouped[t.thema] ??= []).push(t);
+  // Kurs › Thema › Trainer gruppieren (Reihenfolge bleibt alphabetisch)
+  const tree = useMemo(() => buildTree(filtered), [filtered]);
+  const themaCount = useMemo(() => {
+    const s = new Set();
+    for (const t of filtered) s.add(themaKey(t.kurs, t.thema));
+    return s.size;
+  }, [filtered]);
+
+  function toggleThema(key) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      saveCollapsed(LS_THEMES, next);
+      return next;
+    });
+  }
+
+  function toggleKurs(kurs) {
+    setCollapsedKurse((prev) => {
+      const next = new Set(prev);
+      next.has(kurs) ? next.delete(kurs) : next.add(kurs);
+      saveCollapsed(LS_KURSE, next);
+      return next;
+    });
+  }
+
+  // Bei aktiver Suche wird alles aufgeklappt, damit Treffer sichtbar sind.
+  // Der Kurs/das Thema des offenen Trainers ist immer ausgeklappt.
+  const isKursOpen = (kurs) =>
+    !!q || (active && active.kurs === kurs) || !collapsedKurse.has(kurs);
+  const isThemaOpen = (key) =>
+    !!q || (active && themaKey(active.kurs, active.thema) === key) || !collapsed.has(key);
 
   const Active = active ? getLazy(active) : null;
   const searchRef = useRef(null);
@@ -306,7 +395,7 @@ export default function Gallery() {
             Galerie
           </div>
           <div style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>
-            {trainers.length} Trainer · {Object.keys(grouped).length} Themen
+            {trainers.length} Trainer · {tree.size} Kurse · {themaCount} Themen
           </div>
           <div style={{ position: "relative", marginTop: 16 }}>
             <span
@@ -380,56 +469,182 @@ export default function Gallery() {
           </button>
         </div>
 
-        {Object.entries(grouped).map(([thema, items]) => (
-          <div key={thema} style={{ marginTop: 18, padding: "0 12px" }}>
+        {[...tree.entries()].map(([kurs, themes], ki) => {
+          const kursOpen = isKursOpen(kurs);
+          return (
+          <div key={kurs} style={{ padding: "0 12px" }}>
+            {/* Einklappbare Kurs-Überschrift (oberste Ebene). Hairline-Trenner
+                ab dem zweiten Kurs für klare Gruppierung. */}
             <div
               style={{
-                padding: "4px 12px 6px",
-                color: C.dim,
-                fontFamily: sans,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: 0.6,
-                textTransform: "uppercase",
+                margin: ki === 0 ? "20px 0 2px" : "26px 0 2px",
+                paddingTop: ki === 0 ? 0 : 18,
+                borderTop: ki === 0 ? "none" : `1px solid ${C.lineSoft}`,
               }}
             >
-              {thema}
-            </div>
-            {items.map((t) => {
-              const on = active?.key === t.key;
-              return (
-                <button
-                  key={t.key}
-                  className="lt-focusable lt-nav"
-                  aria-current={on ? "page" : undefined}
-                  onClick={() => setActive(t)}
+              <button
+                className="lt-focusable lt-nav lt-thema-head"
+                aria-expanded={kursOpen}
+                onClick={() => toggleKurs(kurs)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  width: "100%",
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 8,
+                  color: C.text,
+                  fontFamily: sans,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  letterSpacing: -0.1,
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = C.hover;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <span
+                  className="lt-chevron"
+                  aria-hidden="true"
                   style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    background: on ? C.accentSoft : "transparent",
-                    border: "none",
-                    borderRadius: 10,
-                    color: on ? C.accent : C.text2,
-                    fontWeight: on ? 600 : 500,
-                    padding: "8px 12px",
-                    fontSize: 13.5,
-                    fontFamily: sans,
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!on) e.currentTarget.style.background = C.hover;
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!on) e.currentTarget.style.background = "transparent";
+                    display: "inline-block",
+                    color: C.dim,
+                    fontSize: 12,
+                    lineHeight: 1,
+                    opacity: 0.85,
                   }}
                 >
-                  {t.titel}
-                </button>
+                  ›
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>{kurs}</span>
+              </button>
+            </div>
+
+            <div className={`lt-collapse${kursOpen ? " open" : ""}`}>
+             <div className="lt-collapse-inner">
+              <div>
+            {[...themes.entries()].map(([thema, items]) => {
+              const tk = themaKey(kurs, thema);
+              const open = isThemaOpen(tk);
+              return (
+                <div key={tk} style={{ marginTop: 6 }}>
+                  {/* Einklappbare Themen-Zeile: behält den dezenten,
+                      uppercase Look – ergänzt um ein rotierendes Chevron. */}
+                  <button
+                    className="lt-focusable lt-nav lt-thema-head"
+                    aria-expanded={open}
+                    tabIndex={kursOpen ? 0 : -1}
+                    onClick={() => toggleThema(tk)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      width: "100%",
+                      textAlign: "left",
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: 8,
+                      color: C.dim,
+                      fontFamily: sans,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: 0.6,
+                      textTransform: "uppercase",
+                      padding: "5px 12px",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = C.hover;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <span
+                      className="lt-chevron"
+                      aria-hidden="true"
+                      style={{
+                        display: "inline-block",
+                        color: C.dim,
+                        fontSize: 11,
+                        lineHeight: 1,
+                        opacity: 0.7,
+                      }}
+                    >
+                      ›
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>{thema}</span>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        letterSpacing: 0,
+                        color: C.dim,
+                        opacity: open ? 0 : 0.65,
+                        transition: "opacity .2s ease",
+                      }}
+                    >
+                      {items.length}
+                    </span>
+                  </button>
+
+                  <div className={`lt-collapse${open ? " open" : ""}`}>
+                    <div className="lt-collapse-inner">
+                      <div style={{ padding: "2px 0 2px" }}>
+                        {items.map((t) => {
+                          const on = active?.key === t.key;
+                          return (
+                            <button
+                              key={t.key}
+                              className="lt-focusable lt-nav"
+                              aria-current={on ? "page" : undefined}
+                              tabIndex={open && kursOpen ? 0 : -1}
+                              onClick={() => setActive(t)}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                textAlign: "left",
+                                background: on ? C.accentSoft : "transparent",
+                                border: "none",
+                                borderRadius: 10,
+                                color: on ? C.accent : C.text2,
+                                fontWeight: on ? 600 : 500,
+                                padding: "8px 12px 8px 24px",
+                                fontSize: 13.5,
+                                fontFamily: sans,
+                                cursor: "pointer",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!on) e.currentTarget.style.background = C.hover;
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!on) e.currentTarget.style.background = "transparent";
+                              }}
+                            >
+                              {t.titel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               );
             })}
+              </div>
+             </div>
+            </div>
           </div>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
           <div
@@ -448,7 +663,7 @@ export default function Gallery() {
       {/* Main */}
       <main style={{ flex: 1, minWidth: 0 }}>
         {active === null ? (
-          <StartScreen trainers={filtered} grouped={grouped} query={query} onPick={setActive} />
+          <StartScreen trainers={filtered} tree={tree} query={query} onPick={setActive} />
         ) : (
           <div className="lt-fade">
             <header
@@ -510,7 +725,7 @@ export default function Gallery() {
   );
 }
 
-function StartScreen({ trainers, grouped, query, onPick }) {
+function StartScreen({ trainers, tree, query, onPick }) {
   return (
     <div className="lt-fade" style={{ padding: "56px 48px 64px", maxWidth: 1180 }}>
       <h1 style={{ fontSize: 40, margin: 0, fontWeight: 700, letterSpacing: -1 }}>
@@ -523,33 +738,50 @@ function StartScreen({ trainers, grouped, query, onPick }) {
         <code style={{ color: C.accent, fontFamily: mono, fontSize: 14 }}>.jsx</code>-Datei in
         einen Ordner unter{" "}
         <code style={{ color: C.accent, fontFamily: mono, fontSize: 14 }}>
-          src/trainers/&lt;Thema&gt;/
+          src/trainers/&lt;Kurs&gt;/&lt;Thema&gt;/
         </code>
         .
       </p>
 
-      {Object.entries(grouped).map(([thema, items]) => (
-        <section key={thema} style={{ marginTop: 44 }}>
+      {[...tree.entries()].map(([kurs, themes]) => (
+        <section key={kurs} style={{ marginTop: 52 }}>
+          {/* Kurs-Überschrift: prominenter Anker für die Themen darunter */}
           <h2
             style={{
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: 0.8,
-              textTransform: "uppercase",
-              color: C.dim,
-              margin: "0 0 18px",
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: -0.4,
+              color: C.text,
+              margin: "0 0 4px",
+              paddingBottom: 14,
+              borderBottom: `1px solid ${C.line}`,
             }}
           >
-            {thema}
+            {kurs}
           </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 22,
-            }}
-          >
-            {items.map((t) => (
+
+          {[...themes.entries()].map(([thema, items]) => (
+            <div key={thema} style={{ marginTop: 32 }}>
+              <h3
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: 0.8,
+                  textTransform: "uppercase",
+                  color: C.dim,
+                  margin: "0 0 18px",
+                }}
+              >
+                {thema}
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: 22,
+                }}
+              >
+                {items.map((t) => (
               <article
                 key={t.key}
                 className="lt-tile lt-focusable"
@@ -646,8 +878,10 @@ function StartScreen({ trainers, grouped, query, onPick }) {
                   </span>
                 </div>
               </article>
-            ))}
-          </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       ))}
 
