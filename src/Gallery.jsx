@@ -239,7 +239,31 @@ const globalStyles = `
   ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
   ::-webkit-scrollbar-thumb:hover { background: #aeaeb2; background-clip: content-box; }
   ::-webkit-scrollbar-track { background: transparent; }
+  /* Touch-Geräte: kein Hover-Lift (verhindert „klebenden" Hover nach Tap),
+     Vorschau bleibt in Ruhe-Skalierung. */
+  @media (hover: none) {
+    .lt-tile:hover { transform: none; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.04); }
+    .lt-tile:hover .lt-tile-preview { transform: scale(0.34); }
+  }
+  /* sanftes Ein-/Ausgleiten des Mobil-Drawers + Backdrop */
+  @keyframes lt-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 `;
+
+// Reagiert auf Viewport-Breite (matchMedia) – Basis für das mobile Layout.
+// Kein Resize-Spam: matchMedia feuert nur beim Überschreiten der Grenze.
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    mql.addEventListener("change", onChange);
+    setMatches(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
 
 // Live-Vorschau eines Trainers: rendert das ECHTE JSX-Modul, skaliert auf
 // Thumbnail-Größe herunter, klippt den Überlauf und deaktiviert Interaktion.
@@ -281,12 +305,113 @@ function TrainerPreview({ trainer }) {
   );
 }
 
+// Hamburger-Schaltfläche (nur mobil) – öffnet den Navigations-Drawer.
+function HamburgerButton({ onClick }) {
+  return (
+    <button
+      className="lt-focusable"
+      aria-label="Navigation öffnen"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 4,
+        flexShrink: 0,
+        width: 40,
+        height: 40,
+        padding: 9,
+        background: C.panel,
+        border: `1px solid ${C.line}`,
+        borderRadius: 12,
+        cursor: "pointer",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      }}
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          style={{ height: 2, borderRadius: 2, background: C.text2 }}
+        />
+      ))}
+    </button>
+  );
+}
+
+// Sticky Kopfzeile auf dem Startscreen (mobil) mit Hamburger + Wortmarke.
+function MobileTopBar({ onMenu, count }) {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 20,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "calc(env(safe-area-inset-top) + 10px) 16px 10px",
+        background: "rgba(245,245,247,0.82)",
+        backdropFilter: "saturate(180%) blur(20px)",
+        WebkitBackdropFilter: "saturate(180%) blur(20px)",
+        borderBottom: `1px solid ${C.line}`,
+      }}
+    >
+      <HamburgerButton onClick={onMenu} />
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            color: C.accent,
+            fontFamily: mono,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: 1.4,
+          }}
+        >
+          LERN·TRAINER
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: -0.3, lineHeight: 1.1 }}>
+          Galerie
+        </div>
+      </div>
+      <div style={{ marginLeft: "auto", color: C.dim, fontSize: 12, fontWeight: 500 }}>
+        {count} Trainer
+      </div>
+    </div>
+  );
+}
+
 export default function Gallery() {
   const trainers = useMemo(parseTrainers, []);
   const [active, setActive] = useState(null);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(LS_THEMES));
   const [collapsedKurse, setCollapsedKurse] = useState(() => loadCollapsed(LS_KURSE));
+
+  // Mobiles Layout: Sidebar wird zum Off-Canvas-Drawer mit Hamburger + Backdrop.
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const [navOpen, setNavOpen] = useState(false);
+
+  // Beim Öffnen des Drawers den Hintergrund-Scroll sperren (native App-Haptik).
+  useEffect(() => {
+    if (isMobile && navOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isMobile, navOpen]);
+
+  // Trainer wählen / zur Übersicht – schließt auf dem Handy den Drawer.
+  const selectTrainer = (t) => {
+    setActive(t);
+    setNavOpen(false);
+  };
+  const goHome = () => {
+    setActive(null);
+    setNavOpen(false);
+  };
 
   const q = query.trim().toLowerCase();
   const filtered = trainers.filter(
@@ -362,21 +487,47 @@ export default function Gallery() {
       }}
     >
       <style>{globalStyles}</style>
-      {/* Sidebar */}
+
+      {/* Abdunkelnder Backdrop hinter dem mobilen Drawer */}
+      {isMobile && navOpen && (
+        <div
+          aria-hidden="true"
+          onClick={() => setNavOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            background: "rgba(0,0,0,0.32)",
+            backdropFilter: "blur(2px)",
+            WebkitBackdropFilter: "blur(2px)",
+            animation: "lt-backdrop-in .25s ease both",
+          }}
+        />
+      )}
+
+      {/* Sidebar – Desktop: feste Spalte · Mobil: Off-Canvas-Drawer */}
       <aside
         aria-label="Trainer-Navigation"
+        aria-hidden={isMobile && !navOpen ? "true" : undefined}
         style={{
-          width: 288,
+          width: isMobile ? "min(86vw, 320px)" : 288,
           flexShrink: 0,
-          background: C.side,
+          background: isMobile ? C.panel : C.side,
           backdropFilter: "saturate(180%) blur(20px)",
           WebkitBackdropFilter: "saturate(180%) blur(20px)",
           borderRight: `1px solid ${C.line}`,
-          padding: "24px 0",
-          height: "100vh",
-          position: "sticky",
+          padding: isMobile
+            ? "calc(env(safe-area-inset-top) + 18px) 0 24px"
+            : "24px 0",
+          height: isMobile ? "100dvh" : "100vh",
+          position: isMobile ? "fixed" : "sticky",
           top: 0,
+          left: 0,
+          zIndex: 50,
           overflowY: "auto",
+          transform: isMobile && !navOpen ? "translateX(-105%)" : "translateX(0)",
+          transition: "transform .32s cubic-bezier(.25,.8,.25,1)",
+          boxShadow: isMobile && navOpen ? "0 0 40px rgba(0,0,0,0.22)" : "none",
         }}
       >
         <div style={{ padding: "0 22px 18px" }}>
@@ -441,7 +592,7 @@ export default function Gallery() {
           <button
             className="lt-focusable lt-nav"
             aria-current={active === null ? "page" : undefined}
-            onClick={() => setActive(null)}
+            onClick={goHome}
             style={{
               display: "flex",
               alignItems: "center",
@@ -607,7 +758,7 @@ export default function Gallery() {
                               className="lt-focusable lt-nav"
                               aria-current={on ? "page" : undefined}
                               tabIndex={open && kursOpen ? 0 : -1}
-                              onClick={() => setActive(t)}
+                              onClick={() => selectTrainer(t)}
                               style={{
                                 display: "block",
                                 width: "100%",
@@ -663,7 +814,18 @@ export default function Gallery() {
       {/* Main */}
       <main style={{ flex: 1, minWidth: 0 }}>
         {active === null ? (
-          <StartScreen trainers={filtered} tree={tree} query={query} onPick={setActive} />
+          <>
+            {isMobile && (
+              <MobileTopBar onMenu={() => setNavOpen(true)} count={trainers.length} />
+            )}
+            <StartScreen
+              trainers={filtered}
+              tree={tree}
+              query={query}
+              onPick={selectTrainer}
+              isMobile={isMobile}
+            />
+          </>
         ) : (
           <div className="lt-fade">
             <header
@@ -673,17 +835,22 @@ export default function Gallery() {
                 zIndex: 5,
                 display: "flex",
                 alignItems: "center",
-                gap: 14,
-                padding: "12px 28px",
+                gap: isMobile ? 10 : 14,
+                padding: isMobile
+                  ? "calc(env(safe-area-inset-top) + 10px) 14px 10px"
+                  : "12px 28px",
                 background: "rgba(245,245,247,0.8)",
                 backdropFilter: "saturate(180%) blur(20px)",
                 WebkitBackdropFilter: "saturate(180%) blur(20px)",
                 borderBottom: `1px solid ${C.line}`,
               }}
             >
+              {isMobile && (
+                <HamburgerButton onClick={() => setNavOpen(true)} />
+              )}
               <button
                 className="lt-focusable"
-                onClick={() => setActive(null)}
+                onClick={goHome}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -698,12 +865,27 @@ export default function Gallery() {
                   padding: "6px 14px",
                   cursor: "pointer",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  flexShrink: 0,
                 }}
               >
                 ‹ Zurück
               </button>
-              <div style={{ fontSize: 13, color: C.dim }}>
-                {active.thema} <span style={{ margin: "0 6px", opacity: 0.5 }}>/</span>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: C.dim,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {!isMobile && (
+                  <>
+                    {active.thema}{" "}
+                    <span style={{ margin: "0 6px", opacity: 0.5 }}>/</span>
+                  </>
+                )}
                 <span style={{ color: C.text, fontWeight: 600 }}>{active.titel}</span>
               </div>
             </header>
@@ -725,13 +907,34 @@ export default function Gallery() {
   );
 }
 
-function StartScreen({ trainers, tree, query, onPick }) {
+function StartScreen({ trainers, tree, query, onPick, isMobile }) {
   return (
-    <div className="lt-fade" style={{ padding: "56px 48px 64px", maxWidth: 1180 }}>
-      <h1 style={{ fontSize: 40, margin: 0, fontWeight: 700, letterSpacing: -1 }}>
+    <div
+      className="lt-fade"
+      style={{
+        padding: isMobile ? "24px 16px calc(env(safe-area-inset-bottom) + 48px)" : "56px 48px 64px",
+        maxWidth: 1180,
+      }}
+    >
+      <h1
+        style={{
+          fontSize: isMobile ? 28 : 40,
+          margin: 0,
+          fontWeight: 700,
+          letterSpacing: isMobile ? -0.6 : -1,
+        }}
+      >
         Deine Lern-Trainer
       </h1>
-      <p style={{ color: C.text2, fontSize: 17, lineHeight: 1.55, maxWidth: 640, marginTop: 12 }}>
+      <p
+        style={{
+          color: C.text2,
+          fontSize: isMobile ? 15 : 17,
+          lineHeight: 1.55,
+          maxWidth: 640,
+          marginTop: isMobile ? 8 : 12,
+        }}
+      >
         Alle interaktiven Trainer aus deinem Studium an einem Ort. Jede Kachel zeigt eine
         Live-Vorschau des echten Trainers – klick rein, um loszulegen. Neue Trainer
         hinzufügen: lege einfach eine{" "}
@@ -744,7 +947,7 @@ function StartScreen({ trainers, tree, query, onPick }) {
       </p>
 
       {[...tree.entries()].map(([kurs, themes]) => (
-        <section key={kurs} style={{ marginTop: 52 }}>
+        <section key={kurs} style={{ marginTop: isMobile ? 36 : 52 }}>
           {/* Kurs-Überschrift: prominenter Anker für die Themen darunter */}
           <h2
             style={{
@@ -761,7 +964,7 @@ function StartScreen({ trainers, tree, query, onPick }) {
           </h2>
 
           {[...themes.entries()].map(([thema, items]) => (
-            <div key={thema} style={{ marginTop: 32 }}>
+            <div key={thema} style={{ marginTop: isMobile ? 24 : 32 }}>
               <h3
                 style={{
                   fontSize: 13,
@@ -777,8 +980,10 @@ function StartScreen({ trainers, tree, query, onPick }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                  gap: 22,
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
+                  gap: isMobile ? 16 : 22,
                 }}
               >
                 {items.map((t) => (

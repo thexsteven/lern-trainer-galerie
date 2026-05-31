@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lern-Trainer">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a9bff"/>
+      <stop offset="1" stop-color="#0064d2"/>
+    </linearGradient>
+  </defs>
+  <!-- Voll-bleed Hintergrund (gut für maskable & iOS-Auto-Rundung) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Doktorhut: Brett, Kappe, Quaste -->
+  <g>
+    <!-- Quaste (Kordel + Knoten) -->
+    <path d="M256 215 L386 197 L386 300" fill="none" stroke="#ffffff" stroke-width="7"
+          stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+    <circle cx="386" cy="313" r="13" fill="#ffffff"/>
+    <!-- Kappe (Kopfteil) -->
+    <path d="M180 248 L256 280 L332 248 L332 298 Q332 334 256 334 Q180 334 180 298 Z" fill="#e8f0ff"/>
+    <!-- Brett (Mortarboard) -->
+    <path d="M256 150 L412 215 L256 280 L100 215 Z" fill="#ffffff"/>
+    <!-- Knopf in der Mitte -->
+    <circle cx="256" cy="215" r="9" fill="#0a6fe0"/>
+  </g>
+</svg>
