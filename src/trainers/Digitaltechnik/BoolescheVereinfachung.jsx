@@ -371,7 +371,7 @@ function VisTruthTable() {
 const DEMORGAN_STEPS = [
   {
     render: (hl) => <><Bar>A·B</Bar></>,
-    note: "Start: Negation über einer ganzen UND-Verknüpfung. ‾(A·B) bedeutet „NICHT (A UND B)".",
+    note: "Start: Negation über einer ganzen UND-Verknüpfung. ‾(A·B) bedeutet „NICHT (A UND B)“.",
     color: C.dim,
   },
   {
@@ -538,11 +538,11 @@ export default function BoolescheVereinfachung() {
           <MethodRow color={C.gold}    name="Komplement"        formula="A·Ā = 0 ;  A+Ā = 1"
             note="Etwas UND sein Gegenteil ist nie wahr; ODER sein Gegenteil ist immer wahr." />
           <MethodRow color={C.warn}    name="Doppelnegation"    formula="‾(Ā) = A"
-            note="Zweimal „nicht" hebt sich auf." />
+            note="Zweimal „nicht“ hebt sich auf." />
           <MethodRow color={C.accent2} name="De Morgan"         formula="‾(A·B) = Ā+B̄ ;  ‾(A+B) = Ā·B̄"
             note="Negation einer Klammer: Operator tauschen, jede Variable negieren." />
           <MethodRow color={C.accent}  name="Absorption"        formula="A + A·B = A ;  A·(A+B) = A"
-            note="Der größere Term „schluckt" den kleineren – ganze Terme fallen weg." />
+            note="Der größere Term „schluckt“ den kleineren – ganze Terme fallen weg." />
           <MethodRow color={C.accent}  name="Redundanz (vereinf. Absorption)" formula="A + Ā·B = A + B"
             note="Steht A schon allein da, ist das Ā im Nachbarterm überflüssig." />
         </Section>
