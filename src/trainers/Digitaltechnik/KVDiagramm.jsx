@@ -258,6 +258,49 @@ function renderEq(sol, kind) {
   ));
 }
 
+/* Hilfsfunktion: aus einer Lösung die Block-Farbpunkte (chips) aufbauen */
+function chipsFromSol(sol) {
+  const chips = {}, tint = {};
+  sol.chosen.forEach((b, i) => {
+    const col = BLOCK_COLORS[i % BLOCK_COLORS.length];
+    b.cov.forEach((m) => { (chips[m] = chips[m] || []).push(col); if (!tint[m]) tint[m] = `${col}26`; });
+  });
+  return { chips, tint };
+}
+
+/* =========================================================================
+   ABLESE-SATZ: macht das Vorgehen "konstante Variablen → Term" explizit.
+   Für jeden Block: welche Variable bleibt fest (kommt in den Term),
+   welche wechselt (fällt weg).
+   ========================================================================= */
+function AbleseLine({ fixed, kind = "DMF" }) {
+  const changing = VARS.filter((v) => !fixed.some((f) => f.v === v));
+  return (
+    <div style={{ fontSize: 14.5, lineHeight: 1.7, color: C.text }}>
+      {fixed.length === 0 ? (
+        <>Keine Variable bleibt fest – <b style={{ color: C.dim }}>alle wechseln</b> → alles fällt weg → Term = <code style={{ color: kind === "DMF" ? C.accent : C.accent2, fontFamily: "ui-monospace, monospace" }}>{kind === "DMF" ? "1" : "0"}</code>.</>
+      ) : (
+        <>
+          {fixed.map((f, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && " & "}
+              <b style={{ color: kind === "DMF" ? C.accent : C.accent2 }}>{f.v}={f.val}</b>
+            </React.Fragment>
+          ))}{" "}
+          {fixed.length > 1 ? "bleiben" : "bleibt"} <b style={{ color: kind === "DMF" ? C.accent : C.accent2 }}>fest</b>,{" "}
+          {changing.map((v, i) => (
+            <React.Fragment key={i}>{i > 0 && " & "}<span style={{ color: C.dim, fontWeight: 700 }}>{v}</span></React.Fragment>
+          ))}{" "}
+          {changing.length > 1 ? "wechseln" : "wechselt"} → {changing.length > 1 ? "fallen" : "fällt"} weg → Term ={" "}
+          <code style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "2px 8px", fontSize: 15, color: kind === "DMF" ? C.accent : C.accent2, fontFamily: "ui-monospace, monospace" }}>
+            {kind === "DMF" ? <ProductTerm fixed={fixed} /> : <SumTerm fixed={fixed} />}
+          </code>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* =========================================================================
    KV-GRID (Präsentation) — wird von allen Visualisierungen genutzt
    props:
@@ -320,10 +363,166 @@ function KVGrid({ values = null, chips = {}, ring = {}, tint = {}, onClick }) {
 }
 
 /* =========================================================================
+   VIS A — "Das Raster ist nur eine umsortierte Wahrheitstabelle"
+   Links die echte Wahrheitstabelle (Zeilen m0..m7), rechts dasselbe als
+   Raster. Schritt für Schritt leuchtet eine Tabellenzeile UND ihr Feld.
+   ========================================================================= */
+const MAP_CELLS = ["1", "1", "1", "1", "0", "1", "0", "1"]; // F = Ā + C (= Beispiel-Preset)
+
+function VisTruthMap() {
+  const p = usePlayer(8, 1200);
+  const m = p.step;                       // aktuell betrachtete Tabellenzeile = Minterm
+  const ring = { [m]: C.gold };
+  const tint = { [m]: `${C.gold}33` };
+  const bits = mintermBits(m);
+
+  return (
+    <Card>
+      <div style={{ color: C.dim, fontSize: 14, marginBottom: 18, lineHeight: 1.6 }}>
+        Die Wahrheitstabelle hat <b style={{ color: C.text }}>8 Zeilen</b> (eine pro Eingangsbelegung, also pro Kombination von A,&nbsp;B,&nbsp;C). Das KV-Raster hat <b style={{ color: C.text }}>8 Felder</b> – exakt dieselben 8 Zeilen, nur räumlich umsortiert. <b style={{ color: C.gold }}>Jedes Feld = eine Tabellenzeile</b>, der Feldinhalt = der Funktionswert F.
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 28, alignItems: "flex-start", justifyContent: "center" }}>
+        {/* Wahrheitstabelle */}
+        <div>
+          <div style={{ color: C.accent2, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, textAlign: "center" }}>Wahrheitstabelle</div>
+          <table style={{ borderCollapse: "collapse", fontFamily: "ui-monospace, monospace", fontSize: 14 }}>
+            <thead>
+              <tr>
+                {["m", "A", "B", "C", "F"].map((h) => (
+                  <th key={h} style={{ color: C.dim, fontWeight: 700, padding: "4px 10px", borderBottom: `1px solid ${C.line}` }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((mm) => {
+                const b = mintermBits(mm);
+                const on = mm === m;
+                const fv = MAP_CELLS[mm];
+                return (
+                  <tr key={mm} style={{ background: on ? `${C.gold}26` : "transparent", transition: "background .2s ease" }}>
+                    <td style={{ color: C.dim, padding: "4px 10px", textAlign: "center" }}>m{mm}</td>
+                    {b.map((x, i) => <td key={i} style={{ color: on ? C.text : C.dim, fontWeight: on ? 800 : 400, padding: "4px 10px", textAlign: "center" }}>{x}</td>)}
+                    <td style={{ color: fv === "1" ? C.accent : C.dim, fontWeight: 800, padding: "4px 10px", textAlign: "center" }}>{fv}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pfeil */}
+        <div style={{ alignSelf: "center", color: C.gold, fontSize: 26, fontWeight: 800 }}>→</div>
+
+        {/* Raster */}
+        <div>
+          <div style={{ color: C.accent2, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, textAlign: "center" }}>Dasselbe als KV-Raster</div>
+          <KVGrid values={MAP_CELLS} ring={ring} tint={tint} />
+        </div>
+      </div>
+
+      <div key={p.step} style={{ marginTop: 18, background: C.bg, border: `2px solid ${C.gold}`, borderRadius: 12, padding: "14px 18px", textAlign: "center", animation: "pop .3s ease" }}>
+        <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 16, color: C.text }}>
+          Zeile <b style={{ color: C.gold }}>m{m}</b>: A={bits[0]}, B={bits[1]}, C={bits[2]} → F = <b style={{ color: MAP_CELLS[m] === "1" ? C.accent : C.dim }}>{MAP_CELLS[m]}</b>
+        </span>
+        <div style={{ color: C.dim, fontSize: 13, marginTop: 6 }}>Genau diese Zeile steht im Raster in dem gelb umrandeten Feld – Tabelle und Diagramm tragen dieselbe Information.</div>
+      </div>
+
+      <PlayerControls p={p} total={8} playLabel="▶ Zeilen durchgehen" />
+      <div style={{ marginTop: 14 }}>
+        <Tag color={C.gold}>aktuelle Zeile / aktuelles Feld</Tag>
+        <Tag color={C.accent}>F = 1</Tag>
+        <Tag color={C.dim}>F = 0</Tag>
+      </div>
+    </Card>
+  );
+}
+
+/* =========================================================================
+   VIS B — Aufbau von 2 → 3 Variablen.
+   F = A·B̄ + A·B  in einem 2×2-Raster. Umkreisen der zwei Einsen ist nichts
+   anderes als das Gesetz  X·Ȳ + X·Y = X  (algebraische Vereinfachung aus
+   dem Schwester-Trainer "Boolesche Vereinfachung").
+   ========================================================================= */
+const TWO_STEPS = [
+  { circle: false, read: false, note: "Funktion mit 2 Variablen: F = A·B̄ + A·B. In der unteren Zeile (A=1) stehen beide Einsen. Jeder dieser Minterme (Vollkonjunktion über alle Variablen) ist genau ein Feld." },
+  { circle: true,  read: false, note: "Wir umkreisen die beiden benachbarten Einsen zu einem 2er-Block. Sie unterscheiden sich nur in B (links B=0, rechts B=1) – A ist in beiden 1." },
+  { circle: true,  read: true,  note: "Ablesen: A bleibt fest = 1, B wechselt → B fällt weg. Ergebnis F = A. Das Umkreisen IST das Anwenden eines Booleschen Gesetzes – sichtbar gemacht." },
+];
+
+function MiniCell({ A, B, on, circled }) {
+  return (
+    <div style={{
+      position: "relative", width: 92, height: 60, borderRadius: 10,
+      background: circled && on ? `${C.accent}33` : on ? `${C.accent}1f` : C.panel2,
+      border: circled && on ? `2px solid ${C.accent}` : `1px solid ${C.line}`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      transition: "all .3s ease",
+    }}>
+      <div style={{ position: "absolute", top: 3, left: 6, fontSize: 9, color: C.dim, fontFamily: "ui-monospace, monospace" }}>A={A} B={B}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "ui-monospace, monospace", color: on ? C.accent : C.dim }}>{on ? "1" : "0"}</div>
+    </div>
+  );
+}
+
+function Vis2Var() {
+  const p = usePlayer(TWO_STEPS.length, 2400);
+  const s = TWO_STEPS[p.step];
+  const hdr = { width: 92, textAlign: "center", color: C.accent2, fontWeight: 800, fontFamily: "ui-monospace, monospace", fontSize: 13 };
+  return (
+    <Card>
+      <div style={{ color: C.dim, fontSize: 14, marginBottom: 18, lineHeight: 1.6 }}>
+        Bevor wir 3 Variablen angehen, der einfachste Fall: nur <b style={{ color: C.text }}>A</b> und <b style={{ color: C.text }}>B</b>. Ein 2-Variablen-Raster hat 4 Felder (Spalten = B, Zeilen = A).
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "34px repeat(2, 92px)", gap: 6 }}>
+          <div style={{ ...hdr, width: 34, color: C.dim, fontSize: 11 }}>A\B</div>
+          <div style={hdr}>0</div>
+          <div style={hdr}>1</div>
+          {[0, 1].map((A) => (
+            <React.Fragment key={A}>
+              <div style={{ ...hdr, width: 34, display: "flex", alignItems: "center", justifyContent: "center" }}>{A}</div>
+              {[0, 1].map((B) => {
+                const on = A === 1; // F = A·B̄ + A·B → untere Zeile
+                return <MiniCell key={B} A={A} B={B} on={on} circled={s.circle} />;
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Formel-Herleitung */}
+      <div key={p.step} style={{ marginTop: 18, background: C.bg, border: `2px solid ${C.accent}`, borderRadius: 12, padding: "16px 18px", textAlign: "center", animation: "pop .3s ease" }}>
+        {!s.read ? (
+          <span style={{ fontSize: 22, fontFamily: "ui-monospace, monospace", color: C.text }}>
+            F = A·<Bar>B</Bar> + A·B
+          </span>
+        ) : (
+          <div style={{ fontSize: 19, fontFamily: "ui-monospace, monospace", color: C.text, lineHeight: 1.8 }}>
+            A·<Bar>B</Bar> + A·B
+            <span style={{ color: C.dim }}> = </span>A·(<Bar>B</Bar> + B)
+            <span style={{ color: C.dim }}> = </span>A·1
+            <span style={{ color: C.dim }}> = </span><b style={{ color: C.accent, fontSize: 24 }}>A</b>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 14, color: C.dim, fontSize: 14, lineHeight: 1.6, minHeight: 44 }}>{s.note}</div>
+      <PlayerControls p={p} total={TWO_STEPS.length} playLabel="▶ Umkreisen = Vereinfachen" />
+
+      <InfoBox title="Die Brücke zur Booleschen Algebra">
+        Genau diese Herleitung – <code style={{ color: C.text }}>A·B̄ + A·B = A·(B̄+B) = A·1 = A</code> über <b>Distributivgesetz</b> (Ausklammern) und <b>Komplementgesetz</b> (<code style={{ color: C.text }}>B̄+B = 1</code>) – steht im Schwester-Trainer <i>„Boolesche Vereinfachung“</i>. Allgemein: <code style={{ color: C.text }}>X·Ȳ + X·Y = X</code>. Das KV-Diagramm rechnet das nicht anders – es macht dasselbe Gesetz nur als <b style={{ color: C.accent }}>Bild</b> sichtbar: zwei benachbarte Einsen umkreisen = die wechselnde Variable streichen.
+      </InfoBox>
+    </Card>
+  );
+}
+
+/* =========================================================================
    VIS 1 — Nachbarschaft & Gray-Code: warum dieses Raster?
    ========================================================================= */
 const ADJ_STEPS = [
-  { center: 0, note: "Jedes Feld hat genau 3 Nachbarn – je ein gekipptes Bit (A, B oder C). Nachbarn = Hamming-Abstand 1." },
+  { center: 0, note: "Jedes Feld hat genau 3 Nachbarn – je ein gekipptes Bit (A, B oder C). Nachbarn = Hamming-Abstand 1 (Anzahl unterschiedlicher Bitstellen = 1)." },
   { center: 0, wrapWith: 2, note: "m0 (000) liegt links außen, m2 (010) rechts außen. Über den Rand hinweg sind sie trotzdem benachbart – nur B kippt. Darum darf ein Block „um die Kante wrappen“." },
   { center: 5, note: "Auch senkrecht: m5 (101) und m1 (001) liegen über-/untereinander – hier kippt nur A. Die Gray-Code-Anordnung sorgt dafür, dass JEDE Nachbarschaft genau 1 Bit ändert." },
 ];
@@ -356,6 +555,46 @@ function VisAdjacency() {
 }
 
 /* =========================================================================
+   VIS — Warum 00,01,11,10 statt 00,01,10,11? (Gray-Code konkret begründen)
+   ========================================================================= */
+function GrayCompare() {
+  const binary = ["00", "01", "10", "11"];
+  const gray = ["00", "01", "11", "10"];
+  const flips = (a, b) => (a[0] !== b[0] ? 1 : 0) + (a[1] !== b[1] ? 1 : 0);
+  const Row = ({ seq, label, good }) => (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ color: C.dim, fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+        {seq.map((code, i) => (
+          <React.Fragment key={i}>
+            <div style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 12px", fontFamily: "ui-monospace, monospace", fontWeight: 800, color: C.text, fontSize: 15 }}>{code}</div>
+            {i < seq.length - 1 && (() => {
+              const f = flips(seq[i], seq[i + 1]);
+              const ok = f === 1;
+              return (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", color: ok ? C.good : C.warn, fontSize: 11, fontWeight: 800, minWidth: 54 }}>
+                  <span style={{ fontSize: 16 }}>→</span>
+                  {f} Bit{f === 1 ? "" : "s"}{ok ? " ✓" : " ✗"}
+                </div>
+              );
+            })()}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <Card>
+      <Row seq={binary} label="Normale Binärzählung 00 → 01 → 10 → 11" />
+      <Row seq={gray} label="Gray-Code 00 → 01 → 11 → 10 (so beschriften wir die Spalten)" />
+      <div style={{ marginTop: 6, color: C.dim, fontSize: 14, lineHeight: 1.65 }}>
+        Beim normalen Zählen springt <code style={{ color: C.text }}>01 → 10</code> um <b style={{ color: C.warn }}>zwei</b> Bits gleichzeitig – solche Felder ließen sich <i>nicht</i> zusammenfassen. Im Gray-Code ändert jeder Schritt <b style={{ color: C.good }}>genau ein</b> Bit. Nur deshalb sind geometrische Nachbarn auch logische Nachbarn (Hamming-Abstand 1), und das Umkreisen funktioniert. Aus demselben Grund sind <b style={{ color: C.text }}>linker und rechter Rand benachbart</b> (10 → 00 ändert nur 1 Bit) – ein Block darf um die Kante laufen.
+      </div>
+    </Card>
+  );
+}
+
+/* =========================================================================
    VIS 2 — Warum Zweierpotenzen? Block wächst, Term schrumpft.
    ========================================================================= */
 const SHRINK_STEPS = [
@@ -381,7 +620,103 @@ function VisBlockShrink() {
         <div style={{ color: C.accent, fontSize: 13, fontWeight: 700, marginTop: 6 }}>{size}er-Block · {entfallen} Variable{entfallen === 1 ? "" : "n"} entfallen</div>
       </div>
       <div style={{ marginTop: 14, color: C.dim, fontSize: 14, lineHeight: 1.6 }}>{s.note}</div>
+      <div style={{ marginTop: 14, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 16px" }}>
+        <div style={{ color: C.accent, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>So liest man diesen Block ab</div>
+        <AbleseLine fixed={s.fixed} kind="DMF" />
+      </div>
       <PlayerControls p={p} total={SHRINK_STEPS.length} playLabel="▶ Block vergrößern" />
+    </Card>
+  );
+}
+
+/* =========================================================================
+   VIS — DMF und KMF am SELBEN Beispiel nebeneinander.
+   F = Ā·C̄ + A·C   (DMF, aus den Einsen)
+     = (A+C̄)·(Ā+C) (KMF, aus den Nullen) — dieselbe Funktion, zwei Sichten.
+   ========================================================================= */
+const EX_DK = ["1", "0", "1", "0", "0", "1", "0", "1"]; // F = 1 genau dort, wo A == C
+
+function SideBySide() {
+  const solDMF = useMemo(() => solve(EX_DK, "1"), []);
+  const solKMF = useMemo(() => solve(EX_DK, "0"), []);
+  const dmf = chipsFromSol(solDMF);
+  const kmf = chipsFromSol(solKMF);
+  return (
+    <Card>
+      <div style={{ color: C.dim, fontSize: 14, marginBottom: 18, lineHeight: 1.6 }}>
+        Dieselbe Funktion, zweimal beschrieben. <b style={{ color: C.accent }}>Links</b> umkreisen wir die <b style={{ color: C.accent }}>Einsen</b> (Türkis), <b style={{ color: C.accent2 }}>rechts</b> die <b style={{ color: C.accent2 }}>Nullen</b> (Indigo) – im identischen Raster.
+      </div>
+      <div style={{ display: "grid", gap: 18, gridTemplateColumns: "1fr 1fr" }}>
+        {/* DMF */}
+        <div>
+          <div style={{ color: C.accent, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, textAlign: "center" }}>DMF · Einsen umkreisen</div>
+          <KVGrid values={EX_DK} chips={dmf.chips} tint={dmf.tint} />
+          <div style={{ marginTop: 12, color: C.dim, fontSize: 13, lineHeight: 1.6 }}>
+            Jeder Block = ein <b style={{ color: C.accent }}>UND-Term</b> (Produkt). Die Blöcke werden mit <b>ODER</b> verbunden → <b style={{ color: C.text }}>Summe von Produkten</b>.
+          </div>
+          <div style={{ marginTop: 10, background: `${C.accent}14`, border: `1px solid ${C.accent}55`, borderRadius: 10, padding: "12px 14px", fontFamily: "ui-monospace, monospace", fontSize: 18, color: C.text, textAlign: "center" }}>
+            F = {renderEq(solDMF, "DMF")}
+          </div>
+        </div>
+        {/* KMF */}
+        <div>
+          <div style={{ color: C.accent2, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, textAlign: "center" }}>KMF · Nullen umkreisen</div>
+          <KVGrid values={EX_DK.map((v) => (v === "1" ? "0" : "1"))} chips={kmf.chips} tint={kmf.tint} />
+          <div style={{ marginTop: 12, color: C.dim, fontSize: 13, lineHeight: 1.6 }}>
+            Aus den Null-Blöcken liest man das Komplement <code style={{ color: C.text }}>F̄</code> ab und dreht es per De Morgan um: jeder Block wird ein <b style={{ color: C.accent2 }}>ODER-Term</b> in Klammern, verbunden mit <b>UND</b> → <b style={{ color: C.text }}>Produkt von Summen</b>.
+          </div>
+          <div style={{ marginTop: 10, background: `${C.accent2}14`, border: `1px solid ${C.accent2}55`, borderRadius: 10, padding: "12px 14px", fontFamily: "ui-monospace, monospace", fontSize: 18, color: C.text, textAlign: "center" }}>
+            F = {renderEq(solKMF, "KMF")}
+          </div>
+        </div>
+      </div>
+
+      <InfoBox title="Beide Formeln sind dieselbe Funktion">
+        Setzt du irgendeine Belegung ein, liefern <code style={{ color: C.text }}>Ā·C̄ + A·C</code> und <code style={{ color: C.text }}>(A+C̄)·(Ā+C)</code> denselben Wert – sie beschreiben dieselbe Wahrheitstabelle. F ist genau dann 1, wenn A und C gleich sind. Die DMF sagt das „positiv“ über die Einsen, die KMF „negativ“ über die Nullen. Welche du nimmst, ist eine reine Aufwandsfrage (Abschnitt 6).
+      </InfoBox>
+      <div style={{ marginTop: 4 }}>
+        <Tag color={C.accent}>DMF-Blöcke (Einsen)</Tag>
+        <Tag color={C.accent2}>KMF-Blöcke (Nullen)</Tag>
+      </div>
+    </Card>
+  );
+}
+
+/* =========================================================================
+   VIS — Normalform (ungekürzt) vs. Minimalform (gekürzt)
+   ========================================================================= */
+function NormalVsMinimal() {
+  const sol = useMemo(() => solve(EX_DK, "1"), []);
+  const ones = [0, 2, 5, 7]; // Einser-Zeilen von EX_DK
+  return (
+    <Card>
+      <div style={{ color: C.dim, fontSize: 14, marginBottom: 16, lineHeight: 1.6 }}>
+        Beide Zeilen unten beschreiben <b style={{ color: C.text }}>dieselbe</b> Funktion (das A==C-Beispiel von eben).
+      </div>
+      <div style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 12, padding: "14px 16px", marginBottom: 12 }}>
+        <div style={{ color: C.dim, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>KDNF – kanonische disjunktive Normalform (ungekürzt)</div>
+        <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 17, color: C.text }}>
+          F = {ones.map((m, i) => {
+            const b = mintermBits(m);
+            const fx = VARS.map((v, k) => ({ v, val: b[k] }));
+            return <React.Fragment key={m}>{i > 0 && " + "}<ProductTerm fixed={fx} /></React.Fragment>;
+          })}
+        </div>
+        <div style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 1.55 }}>
+          Jede Einser-Zeile <i>einzeln</i> als vollständiger Minterm (alle 3 Variablen). Direkt aus der Tabelle, ohne jede Vereinfachung – korrekt, aber lang.
+        </div>
+      </div>
+      <div style={{ textAlign: "center", color: C.accent, fontSize: 20, margin: "4px 0 12px" }}>↓ umkreisen & kürzen ↓</div>
+      <div style={{ background: `${C.accent}14`, border: `1px solid ${C.accent}55`, borderRadius: 12, padding: "14px 16px" }}>
+        <div style={{ color: C.accent, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>DMF – disjunktive Minimalform (gekürzt)</div>
+        <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 19, color: C.text }}>F = {renderEq(sol, "DMF")}</div>
+        <div style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 1.55 }}>
+          Das ist die Form, die der Trainer ausgibt – das Ergebnis nach dem Umkreisen.
+        </div>
+      </div>
+      <InfoBox title="Warum die Namen so leicht verwirren">
+        <b>DNF</b> (disjunktive Normalform) ist der <b>Oberbegriff</b> für „ODER von UND-Termen“. Davon gibt es zwei Ausprägungen: die <b>KDNF</b> ist die <i>kanonische</i> (vollständige, ungekürzte) Variante – jede Zeile einzeln; die <b>DMF</b> ist die <i>minimierte</i> Variante nach dem Zusammenfassen. Gleiches Spiel auf der Nullen-Seite: <b>KKNF</b> (ungekürzt) ↔ <b>KMF</b> (gekürzt). Merksatz: <b style={{ color: C.text }}>„K…NF = ungekürzt aus der Tabelle, …MF = gekürzt aus dem Diagramm.“</b>
+      </InfoBox>
     </Card>
   );
 }
@@ -466,6 +801,14 @@ function VisInteractiveKV() {
         {current ? currentDesc : step === 0 ? "— Reset: nur die Belegung, noch keine Blöcke —" : "Alle Blöcke eingezeichnet."}
       </div>
 
+      {/* Ablese-Satz zum aktuellen Block: konstante Variablen → Term */}
+      {current && (
+        <div style={{ marginTop: 10, background: C.panel2, border: `1px solid ${mode === "DMF" ? C.accent : C.accent2}55`, borderRadius: 12, padding: "12px 16px" }}>
+          <div style={{ color: mode === "DMF" ? C.accent : C.accent2, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Ablesen</div>
+          <AbleseLine fixed={current.fixed} kind={mode} />
+        </div>
+      )}
+
       {/* live aufgebaute Gleichung */}
       <div style={{ marginTop: 12, background: C.bg, border: `2px solid ${mode === "DMF" ? C.accent : C.accent2}`, borderRadius: 12, padding: "18px 16px", textAlign: "center", fontSize: 26, fontFamily: "ui-monospace, monospace", color: C.text }}>
         F&nbsp;=&nbsp;
@@ -520,7 +863,7 @@ export default function KVDiagramm() {
         <div style={{ color: C.accent, textTransform: "uppercase", letterSpacing: 3, fontSize: 13, fontWeight: 800 }}>Digitaltechnik · Lern-Trainer</div>
         <h1 style={{ fontSize: 44, lineHeight: 1.1, margin: "12px 0 16px" }}>Das <span style={{ color: C.accent }}>KV-Diagramm</span></h1>
         <p style={{ fontSize: 18, color: C.dim, lineHeight: 1.7, maxWidth: 680 }}>
-          Karnaugh-Veitch: das grafische Verfahren, um eine Schaltfunktion mit dem Auge zu minimieren. Du lernst, benachbarte Felder zu Blöcken zusammenzufassen und daraus die kürzestmögliche Formel abzulesen – interaktiv und Schritt für Schritt.
+          Karnaugh-Veitch: das grafische Verfahren, um eine Schaltfunktion mit dem Auge zu minimieren. Wir bauen es von Grund auf – erst zeigen wir, dass das Raster nur eine umsortierte Wahrheitstabelle ist, dann dass jeder „Kreis“ ein Boolesches Gesetz ist, das du direkt ablesen kannst.
         </p>
       </header>
 
@@ -529,7 +872,7 @@ export default function KVDiagramm() {
         {/* 0 — PROBLEM */}
         <Section kicker="0 · Das Problem" title="Warum ein Diagramm statt Algebra?">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Eine <b style={{ color: C.text }}>Schaltfunktion</b> (eine logische Funktion mit Werten 0 = falsch, 1 = wahr) liest man zunächst direkt aus der <b style={{ color: C.text }}>Wahrheitstabelle</b> ab – als <b style={{ color: C.text }}>kanonische disjunktive Normalform (KDNF)</b>, also eine ODER-Verknüpfung aller „Einser-Zeilen“. Diese Form ist korrekt, aber meist riesig und damit teuer in Gattern.
+            Eine <b style={{ color: C.text }}>Schaltfunktion</b> (eine logische Funktion mit Werten 0 = falsch, 1 = wahr) liest man zunächst direkt aus der <b style={{ color: C.text }}>Wahrheitstabelle</b> ab – als <b style={{ color: C.text }}>kanonische disjunktive Normalform (KDNF)</b>, also eine ODER-Verknüpfung aller „Einser-Zeilen“. Jede solche Zeile ist ein <b style={{ color: C.text }}>Minterm</b> (ein UND-Term, in dem jede Variable genau einmal vorkommt). Diese Form ist korrekt, aber meist riesig und damit teuer in Gattern.
           </p>
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
             Beim algebraischen Vereinfachen muss man das passende Gesetz erkennen – fehleranfällig und ohne Garantie aufs Minimum. Das <b style={{ color: C.text }}>KV-Diagramm</b> macht die Vereinfachung dagegen <i>sichtbar</i>: Man ordnet die Funktionswerte so an, dass zusammenfassbare Terme räumlich nebeneinander liegen, und „umkreist“ sie einfach.
@@ -539,22 +882,45 @@ export default function KVDiagramm() {
           </InfoBox>
         </Section>
 
-        {/* 1 — KERNIDEE */}
-        <Section kicker="1 · Die Kernidee" title="Nachbarschaft = ein gekipptes Bit (Gray-Code)">
+        {/* 1 — KERNIDEE: umsortierte Wahrheitstabelle + Brücke zur Algebra */}
+        <Section kicker="1 · Die Kernidee" title="Das Raster ist nur eine umsortierte Wahrheitstabelle">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Das ganze Verfahren steht und fällt mit der Anordnung der Felder. Zeilen und Spalten werden im <b style={{ color: C.text }}>Gray-Code</b> beschriftet (00, 01, 11, 10 statt 00, 01, 10, 11) – ein „einschrittiger“ Code, bei dem sich aufeinanderfolgende Werte nur in einem einzigen Bit unterscheiden.
+            Der wichtigste Aha-Moment zuerst: Ein KV-Diagramm erfindet nichts Neues. Es ist <b style={{ color: C.text }}>dieselbe Wahrheitstabelle</b>, nur als 2D-Raster hingelegt. Jedes Feld steht für genau eine Tabellenzeile (eine Eingangsbelegung), und im Feld steht der Funktionswert F dieser Zeile. Geh die acht Zeilen durch und sieh zu, wie jede in ihrem Feld landet:
           </p>
+          <VisTruthMap />
+
+          <h3 style={{ fontSize: 20, color: C.text, margin: "36px 0 14px" }}>Und warum hilft das Umsortieren? Ein „Kreis“ ist ein Gesetz.</h3>
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Dadurch gilt: <b style={{ color: C.text }}>geometrisch benachbarte Felder unterscheiden sich in genau einem Bit</b> (Hamming-Abstand 1). Genau solche Paare lassen sich nach dem Komplementgesetz zusammenfassen – die eine Variable, die sich ändert, fällt weg.
+            Fangen wir ganz klein an, mit nur zwei Variablen, am Beispiel <code style={{ color: C.text }}>F = A·B̄ + A·B</code>. Wenn du die beiden benachbarten Einsen umkreist, wendest du in Wahrheit ein Boolesches Gesetz an – das siehst du Schritt für Schritt:
+          </p>
+          <Vis2Var />
+        </Section>
+
+        {/* 2 — DIE ANORDNUNG: Gray-Code & Wrap */}
+        <Section kicker="2 · Die Anordnung" title="Warum Gray-Code – und warum der Rand „umklappt“">
+          <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
+            Damit „benachbart = ein gekipptes Bit“ überhaupt stimmt, dürfen die Spalten nicht normal durchgezählt werden. Sie werden im <b style={{ color: C.text }}>Gray-Code</b> beschriftet: 00, 01, 11, 10 statt 00, 01, 10, 11. Der Unterschied ist entscheidend:
+          </p>
+          <GrayCompare />
+          <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8, marginTop: 20 }}>
+            Dadurch gilt: <b style={{ color: C.text }}>geometrisch benachbarte Felder unterscheiden sich in genau einem Bit</b> (Hamming-Abstand 1 = sie unterscheiden sich an genau einer Bitstelle). Genau solche Paare lassen sich – wie beim 2-Variablen-Beispiel – nach dem Komplementgesetz zusammenfassen: die eine Variable, die sich ändert, fällt weg. Beobachte das im Raster, inklusive der Nachbarschaft über den Rand hinweg:
           </p>
           <VisAdjacency />
         </Section>
 
-        {/* 2 — DER SCHWIERIGE TEIL */}
-        <Section kicker="2 · Der schwierige Teil" title="Blöcke bilden – und zwar richtig">
+        {/* 3 — DER SCHWIERIGE TEIL */}
+        <Section kicker="3 · Der schwierige Teil" title="Blöcke bilden – und richtig ablesen">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Man fasst benachbarte Einsen zu rechteckigen <b style={{ color: C.text }}>Blöcken</b> zusammen. Je größer ein Block, desto kürzer der Term:
+            Man fasst benachbarte Einsen zu rechteckigen <b style={{ color: C.text }}>Blöcken</b> (auch „Gruppen“ genannt) zusammen. Je größer ein Block, desto kürzer der Term. Und – das ist der Teil, der oft fehlt – aus jedem Block <b style={{ color: C.text }}>liest</b> man den Term nach einer simplen Regel ab:
           </p>
+          <Card style={{ marginBottom: 18, background: `${C.accent}10`, border: `1px solid ${C.accent}44` }}>
+            <div style={{ color: C.accent, fontWeight: 800, marginBottom: 8 }}>📐 Die Ablese-Regel</div>
+            <ul style={{ margin: 0, paddingLeft: 20, color: C.text, fontSize: 15, lineHeight: 1.8 }}>
+              <li>Schau, welche Variablen im ganzen Block <b style={{ color: C.accent }}>konstant</b> bleiben → die kommen in den Term: konstant <b>1</b> → Variable normal (z.&nbsp;B. A), konstant <b>0</b> → negiert (z.&nbsp;B. Ā).</li>
+              <li>Welche Variablen im Block <b style={{ color: C.dim }}>wechseln</b> (mal 0, mal 1) → die fallen weg.</li>
+            </ul>
+            <div style={{ marginTop: 10, color: C.dim, fontSize: 14 }}>Beispiel: „A=1 bleibt fest, B &amp; C wechseln → Term = A“.</div>
+          </Card>
           <VisBlockShrink />
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8, marginTop: 20 }}>
             Damit das auch das echte Minimum liefert, gelten Scherzers Blockregeln strikt:
@@ -568,10 +934,10 @@ export default function KVDiagramm() {
           <MethodRow color={C.warn}    name="Keine Redundanz"   formula="kein Block überflüssig" note="Zwei Blöcke dürfen nicht exakt dieselben Einsen umfassen, und keine Gruppe darf vollständig in einer anderen enthalten sein." />
         </Section>
 
-        {/* 3 — DAS WERKZEUG LIVE */}
-        <Section kicker="3 · Das Werkzeug live" title="Interaktiver KV-Trainer (DMF & KMF)">
+        {/* 4 — DAS WERKZEUG LIVE */}
+        <Section kicker="4 · Das Werkzeug live" title="Interaktiver KV-Trainer (DMF & KMF)">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Jetzt selbst ausprobieren: Setze die acht Felder per Klick auf 0, 1 oder X. Das Tool findet die maximal großen Blöcke und baut beide Minimalformen auf – die <b style={{ color: C.accent }}>DMF</b> aus den Einsen und die <b style={{ color: C.accent2 }}>KMF</b> aus den Nullen.
+            Jetzt selbst ausprobieren: Setze die acht Felder per Klick auf 0, 1 oder X. Das Tool findet die maximal großen Blöcke und baut beide Minimalformen auf – die <b style={{ color: C.accent }}>DMF</b> aus den Einsen und die <b style={{ color: C.accent2 }}>KMF</b> aus den Nullen. Schalte Schritt für Schritt durch: Bei jedem Block siehst du unten den <b style={{ color: C.text }}>Ablese-Satz</b> (welche Variable bleibt fest, welche fällt weg).
           </p>
           <VisInteractiveKV />
           <p style={{ color: C.dim, fontSize: 14, lineHeight: 1.7, marginTop: 16 }}>
@@ -579,8 +945,24 @@ export default function KVDiagramm() {
           </p>
         </Section>
 
-        {/* 4 — SONDERFÄLLE */}
-        <Section kicker="4 · Sonderfälle" title="Don't-Care und die Wahl DMF vs. KMF">
+        {/* 5 — VARIANTEN: DMF vs KMF, Normalform vs Minimalform */}
+        <Section kicker="5 · Die zwei Sichten" title="DMF vs. KMF – dieselbe Funktion, zweimal beschrieben">
+          <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
+            Eine Funktion lässt sich über ihre Einsen <i>oder</i> über ihre Nullen beschreiben. Beide Wege führen zur selben Funktion – nur die Form unterscheidet sich:
+          </p>
+          <MethodRow color={C.accent}  name="DMF · Summe von Produkten"  formula="… + … + …" note="Einsen umkreisen. Jeder Block = ein UND-Term (Produkt), die Blöcke mit ODER verbunden. „Disjunktiv“ = mit ODER verknüpft." />
+          <MethodRow color={C.accent2} name="KMF · Produkt von Summen"   formula="(…)·(…)·(…)" note="Nullen umkreisen, daraus das Komplement F̄ ablesen und per De Morgan / Shannon umdrehen. Jeder Null-Block = ein ODER-Term in Klammern, die Klammern mit UND verbunden. „Konjunktiv“ = mit UND verknüpft." />
+          <SideBySide />
+
+          <h3 style={{ fontSize: 20, color: C.text, margin: "36px 0 14px" }}>Normalform oder Minimalform? Die Namen sauber trennen</h3>
+          <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
+            Die Abkürzungen ähneln sich gefährlich. Der Unterschied ist aber einfach: <b style={{ color: C.text }}>ungekürzt</b> (jede Zeile einzeln) vs. <b style={{ color: C.text }}>gekürzt</b> (nach dem Umkreisen).
+          </p>
+          <NormalVsMinimal />
+        </Section>
+
+        {/* 6 — SONDERFÄLLE */}
+        <Section kicker="6 · Sonderfälle" title="Don't-Care und die Wahl DMF vs. KMF">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
             <b style={{ color: C.gold }}>Don't-Care (X)</b> bezeichnet Eingangskombinationen, die nie auftreten oder deren Ausgang egal ist (z. B. die sechs Pseudotetraden im BCD-Code). Beim Blockbilden ist X ein <b style={{ color: C.text }}>Joker</b>: Man darf es als 1 mitnehmen, <i>falls es einen Block vergrößert</i> – ansonsten lässt man es als 0. So entstehen größere Blöcke und kürzere Terme „geschenkt“.
           </p>
@@ -588,30 +970,34 @@ export default function KVDiagramm() {
             Beide Formen beschreiben dieselbe Funktion. Man wählt die, die weniger Aufwand erzeugt: Hat die Funktion <b>wenige Einsen</b>, ist die DMF (Einsen umkreisen) kompakter; hat sie <b>wenige Nullen</b>, lohnt die KMF. Für die KMF fasst man die <b>Nullen</b> zu Blöcken zusammen, liest daraus zunächst das Komplement <code style={{ color: C.text }}>F̄</code> ab und negiert es per De Morgan / Shannonschem Satz – aus jedem Produktterm wird ein Summenterm mit invertierten Variablen, aus dem ODER ein UND.
           </InfoBox>
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            Der <b style={{ color: C.text }}>Shannonsche Satz</b>: Man invertiert einen Ausdruck, indem man alle Variablen invertiert und jede Operation durch ihre duale ersetzt (UND ↔ ODER). Genau das passiert beim Übergang von der Nullen-DMF zur fertigen KMF.
+            Der <b style={{ color: C.text }}>Shannonsche Satz</b>: Man invertiert einen Ausdruck, indem man alle Variablen invertiert und jede Operation durch ihre <b>duale</b> ersetzt (dual = das Gegenstück: UND ↔ ODER). Genau das passiert beim Übergang von der Nullen-DMF zur fertigen KMF.
           </p>
         </Section>
 
-        {/* 5 — ANALYSE */}
-        <Section kicker="5 · Analyse" title="Korrektheit, Minimum und die Grenze">
+        {/* 7 — ANALYSE */}
+        <Section kicker="7 · Analyse" title="Korrektheit, Minimum und die Grenze">
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            <b style={{ color: C.text }}>Korrektheit:</b> Jeder Block ist ein gültiger Implikant – alle seine Felder sind 1 (oder X). Die ODER-Verknüpfung aller Blöcke deckt also genau die Einsen ab und nichts darüber hinaus. Das Ergebnis ist damit wertgleich zur Ausgangsfunktion.
+            <b style={{ color: C.text }}>Korrektheit:</b> Jeder Block ist ein gültiger <b style={{ color: C.text }}>Implikant</b> (ein Term, der nur dort 1 ist, wo auch F 1 ist) – alle seine Felder sind 1 (oder X). Die ODER-Verknüpfung aller Blöcke deckt also genau die Einsen ab und nichts darüber hinaus. Das Ergebnis ist damit wertgleich zur Ausgangsfunktion.
           </p>
           <p style={{ color: C.dim, fontSize: 16, lineHeight: 1.8 }}>
-            <b style={{ color: C.text }}>Minimum:</b> Die größtmöglichen Blöcke heißen <b style={{ color: C.text }}>Primimplikanten</b>. Wählt man die unverzichtbaren davon (wesentliche Primimplikanten) plus möglichst wenige weitere zur Überdeckung, erhält man eine minimale Form. Genau dieses Vorgehen formalisiert das tabellarische Quine-McCluskey-Verfahren – das KV-Diagramm ist seine grafische Variante für den Menschen.
+            <b style={{ color: C.text }}>Minimum:</b> Die größtmöglichen Blöcke heißen <b style={{ color: C.text }}>Primimplikanten</b> (Implikanten, die sich nicht weiter vergrößern lassen). Wählt man die unverzichtbaren davon (<b style={{ color: C.text }}>wesentliche Primimplikanten</b> – die als einzige eine bestimmte 1 abdecken) plus möglichst wenige weitere zur Überdeckung, erhält man eine minimale Form. Genau dieses Vorgehen formalisiert das tabellarische Quine-McCluskey-Verfahren – das KV-Diagramm ist seine grafische Variante für den Menschen.
           </p>
           <InfoBox title="O-Notation: warum nur bis 4 Variablen">
             Die <b>O-Notation</b> beschreibt das Wachstum des Aufwands mit der Eingabegröße. Ein KV-Diagramm hat <code>2ⁿ</code> Felder (n = Variablen). Bei 2 Variablen sind das 4, bei 4 schon 16, bei 6 bereits 64 Felder in einem 2-dimensionalen Raster, dessen Nachbarschaften der Mensch nicht mehr überblickt. Darum ist das grafische Verfahren auf etwa <b>n ≤ 4</b> begrenzt – jenseits davon übernimmt der Computer mit Quine-McCluskey (dessen Aufwand allerdings exponentiell bleibt).
           </InfoBox>
         </Section>
 
-        {/* 6 — ZUSAMMENFASSUNG */}
-        <Section kicker="6 · Auf einen Blick" title="Das Wichtigste zusammengefasst">
+        {/* 8 — ZUSAMMENFASSUNG */}
+        <Section kicker="8 · Auf einen Blick" title="Das Wichtigste zusammengefasst">
           <Card style={{ background: `${C.accent}14`, border: `1px solid ${C.accent}55` }}>
             <ul style={{ margin: 0, paddingLeft: 22, color: C.text, fontSize: 16, lineHeight: 2 }}>
-              <li><b>Aufbau:</b> Zeilen/Spalten im Gray-Code → Nachbarn unterscheiden sich in 1 Bit.</li>
-              <li><b>DMF:</b> Einsen zu Blöcken (Zweierpotenz, rechteckig, max. groß, min. Anzahl, dürfen überlappen & wrappen) → ODER von UND-Termen.</li>
-              <li><b>KMF:</b> Nullen zu Blöcken → Komplement ablesen → per De Morgan/Shannon negieren → UND von ODER-Termen.</li>
+              <li><b>Raster = Tabelle:</b> jedes Feld ist eine Zeile der Wahrheitstabelle, nur umsortiert.</li>
+              <li><b>Block = Gesetz:</b> zwei benachbarte Einsen umkreisen = X·Ȳ + X·Y = X anwenden.</li>
+              <li><b>Ablesen:</b> konstante Variablen kommen in den Term (1 → normal, 0 → negiert), wechselnde fallen weg.</li>
+              <li><b>Aufbau:</b> Zeilen/Spalten im Gray-Code → Nachbarn unterscheiden sich in 1 Bit; Ränder wrappen.</li>
+              <li><b>DMF:</b> Einsen zu Blöcken → ODER von UND-Termen (Summe von Produkten).</li>
+              <li><b>KMF:</b> Nullen zu Blöcken → Komplement ablesen → per De Morgan/Shannon negieren → UND von ODER-Termen (Produkt von Summen).</li>
+              <li><b>Normal- vs. Minimalform:</b> KDNF/KKNF = ungekürzt aus der Tabelle, DMF/KMF = gekürzt aus dem Diagramm.</li>
               <li><b>Don't-Care (X):</b> als 1 nutzen, wenn es Blöcke vergrößert; sonst als 0.</li>
               <li><b>Grenze:</b> sinnvoll bis ~4 Variablen, darüber Quine-McCluskey.</li>
             </ul>
@@ -621,16 +1007,17 @@ export default function KVDiagramm() {
           </Card>
         </Section>
 
-        {/* 7 — GLOSSAR */}
-        <Section kicker="7 · Glossar" title="Alle Begriffe & Symbole kompakt">
+        {/* 9 — GLOSSAR */}
+        <Section kicker="9 · Glossar" title="Alle Begriffe & Symbole kompakt">
           <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
             <GlossEntry term="KV-Diagramm" def="Karnaugh-Veitch-Diagramm: grafisches Raster zur Minimierung von Schaltfunktionen bis ~4 Variablen." />
             <GlossEntry term="Schaltfunktion" def="Logische Funktion, die Eingänge (0/1) auf einen Ausgang (0/1) abbildet." />
             <GlossEntry term="Minterm" def="Vollkonjunktion: UND-Term, in dem jede Variable genau einmal (normal oder negiert) vorkommt – eine Einser-Zeile der Tabelle." />
             <GlossEntry term="Maxterm" def="Volldisjunktion: ODER-Term mit allen Variablen – eine Nuller-Zeile der Tabelle." />
-            <GlossEntry term="KDNF / KKNF" def="Kanonische disjunktive/konjunktive Normalform: ungekürzte ODER-aller-Minterme bzw. UND-aller-Maxterme." />
-            <GlossEntry term="DMF" def="Disjunktive Minimalform: minimierte ODER-Verknüpfung von UND-Termen (aus den Einsen)." />
-            <GlossEntry term="KMF" def="Konjunktive Minimalform: minimierte UND-Verknüpfung von ODER-Termen (aus den Nullen)." />
+            <GlossEntry term="DNF / KNF" def="Disjunktive/konjunktive Normalform – Oberbegriffe für „ODER von UND-Termen“ bzw. „UND von ODER-Termen“." />
+            <GlossEntry term="KDNF / KKNF" def="Kanonische (= ungekürzte) disjunktive/konjunktive Normalform: ODER-aller-Minterme bzw. UND-aller-Maxterme, direkt aus der Tabelle." />
+            <GlossEntry term="DMF" def="Disjunktive Minimalform: die GEKÜRZTE DNF nach dem Umkreisen – ODER von UND-Termen (aus den Einsen)." />
+            <GlossEntry term="KMF" def="Konjunktive Minimalform: die GEKÜRZTE KNF nach dem Umkreisen – UND von ODER-Termen (aus den Nullen)." />
             <GlossEntry term="Gray-Code" def="Einschrittiger Code (00,01,11,10): benachbarte Werte unterscheiden sich in genau einem Bit." />
             <GlossEntry term="Hamming-Abstand" def="Anzahl der Bitstellen, in denen sich zwei Codewörter unterscheiden. Nachbarn im KV: Abstand 1." />
             <GlossEntry term="Block / Gruppe" def="Rechteckige Zusammenfassung von 1/2/4/8 benachbarten Feldern, Kantenlänge = Zweierpotenz." />
@@ -639,6 +1026,7 @@ export default function KVDiagramm() {
             <GlossEntry term="Wesentlicher PI" def="Primimplikant, der als einziger eine bestimmte 1 abdeckt – muss in die Lösung." />
             <GlossEntry term="Don't-Care (X)" def="Eingangskombination, deren Ausgang egal/unmöglich ist. Joker: als 1 oder 0 nutzbar." />
             <GlossEntry term="Wrap-around" def="Rand-Nachbarschaft: gegenüberliegende Kanten des Diagramms sind benachbart (Torus)." />
+            <GlossEntry term="dual" def="Das Gegenstück einer Operation: UND ↔ ODER, 0 ↔ 1. Grundlage des Shannonschen Satzes." />
             <GlossEntry term="Shannonscher Satz" def="Invertieren = alle Variablen invertieren und jede Operation durch ihre duale ersetzen." />
             <GlossEntry term="Quine-McCluskey" def="Tabellarisches Verfahren mit gleichem Ziel, auch für viele Variablen geeignet." />
           </div>
