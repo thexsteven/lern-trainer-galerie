@@ -321,6 +321,7 @@ function buildDijkstraSteps() {
   color.s = "gray";
 
   const steps = [];
+  let iter = 0; // 0 = Initialisierung; pro ExtractMin-Aufruf hochgezählt
   const snap = (msg, active = null, relaxedEdge = null, queue = []) =>
     steps.push({
       d: { ...d },
@@ -330,6 +331,7 @@ function buildDijkstraSteps() {
       active,
       relaxedEdge,
       queue: [...queue],
+      iter,
     });
 
   // initial queue = alle Knoten, sortiert nach d
@@ -346,6 +348,7 @@ function buildDijkstraSteps() {
     const sorted = queueArr();
     const minK = sorted[0].k;
     if (d[minK] === Infinity) break; // unerreichbar
+    iter += 1; // neue ExtractMin-Iteration beginnt
     inQueue.delete(minK);
     snap(
       `ExtractMin entnimmt »${minK}« (kleinstes d = ${d[minK]}). Dieser Knoten wird jetzt finalisiert.`,
@@ -396,10 +399,134 @@ function nodeStroke(c) {
   return C.good;
 }
 
+// Farbcode-Buchstabe (w/g/b) passend zur Graph-Legende
+function colorMeta(c) {
+  if (c === "white") return { letter: "w", color: C.dim };
+  if (c === "gray") return { letter: "g", color: C.accent2 };
+  return { letter: "b", color: C.good }; // black
+}
+
+// Leitet die Iterationstabellen-Zeilen aus den Snapshots ab (keine 2. Simulation).
+//  Zeile 0 = Initial-Snapshot; Zeile k = der „… ist fertig (schwarz)"-Snapshot der Iteration k.
+function buildTableRows(steps) {
+  const rows = [{ iter: 0, snap: steps[0], active: "—" }];
+  const maxIter = steps.length ? steps[steps.length - 1].iter : 0;
+  for (let k = 1; k <= maxIter; k++) {
+    const snap = steps.find(
+      (s) => s.iter === k && s.active && s.color[s.active] === "black"
+    );
+    if (snap) rows.push({ iter: k, snap, active: snap.active });
+  }
+  return rows;
+}
+
+// Eine Knotenzelle in der Notation d(π) f, z. B. „10(s) g" oder „∞ w".
+function NodeCell({ d, pi, color }) {
+  const cm = colorMeta(color);
+  const dStr = d === Infinity ? "∞" : String(d);
+  const piStr = d === Infinity ? "" : `(${pi == null ? "−" : pi})`;
+  return (
+    <span style={{ fontFamily: "ui-monospace, Menlo, monospace", fontSize: 13 }}>
+      {dStr}
+      {piStr}{" "}
+      <span style={{ color: cm.color, fontWeight: 800 }}>{cm.letter}</span>
+    </span>
+  );
+}
+
+// Iterationstabelle: eine Spalte pro Knoten, eine Zeile pro ExtractMin-Iteration.
+function DijkstraTable({ rows, currentIter }) {
+  const keys = Object.keys(NODES);
+  const cell = {
+    borderRight: `1px solid ${C.line}`,
+    borderBottom: `1px solid ${C.line}`,
+    padding: "7px 10px",
+    textAlign: "left",
+    whiteSpace: "nowrap",
+  };
+  const head = {
+    ...cell,
+    color: C.dim,
+    fontWeight: 700,
+    fontSize: 13,
+    background: C.panel2,
+    position: "sticky",
+    top: 0,
+  };
+  return (
+    <div
+      style={{
+        background: C.panel2,
+        borderRadius: 12,
+        border: `1px solid ${C.line}`,
+        overflowX: "auto",
+      }}
+    >
+      <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 560 }}>
+        <thead>
+          <tr>
+            <th style={head}>Aufruf (EM)</th>
+            <th style={head}>Q</th>
+            <th style={head}>akt. Knoten</th>
+            {keys.map((k) => (
+              <th key={k} style={{ ...head, textAlign: "center" }}>
+                {NODES[k].label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isCurrent = row.iter === currentIter;
+            const isFuture = row.iter > currentIter;
+            const qStr = row.snap.queue
+              .map((q) => `${q.k}(${q.d === Infinity ? "∞" : q.d})`)
+              .join(", ");
+            return (
+              <tr
+                key={row.iter}
+                style={{
+                  background: isCurrent ? "rgba(94,234,212,0.12)" : "transparent",
+                  opacity: isFuture ? 0.4 : 1,
+                  transition: "background .25s, opacity .25s",
+                }}
+              >
+                <td
+                  style={{
+                    ...cell,
+                    fontWeight: 700,
+                    color: C.text,
+                    borderLeft: `3px solid ${isCurrent ? C.gold : "transparent"}`,
+                  }}
+                >
+                  {row.iter === 0 ? "0 (Init)" : row.iter}
+                </td>
+                <td style={{ ...cell, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 13, color: C.text }}>
+                  {qStr || "—"}
+                </td>
+                <td style={{ ...cell, fontWeight: 800, color: C.gold, textAlign: "center" }}>
+                  {row.active}
+                </td>
+                {keys.map((k) => (
+                  <td key={k} style={{ ...cell, textAlign: "center", color: C.text }}>
+                    <NodeCell d={row.snap.d[k]} pi={row.snap.pi[k]} color={row.snap.color[k]} />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DijkstraStepper() {
   const steps = useRef(buildDijkstraSteps()).current;
+  const tableRows = useRef(buildTableRows(steps)).current;
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [view, setView] = useState("graph"); // "graph" | "table"
   const timer = useRef(null);
 
   useEffect(() => {
@@ -430,7 +557,24 @@ function DijkstraStepper() {
         Knoten entnommen und endgültig festgelegt.
       </p>
 
+      {/* Umschalter: Graph- oder Tabellenansicht */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        <button
+          style={{ ...(view === "graph" ? btn : btnGhost), fontSize: 13 }}
+          onClick={() => setView("graph")}
+        >
+          Graph
+        </button>
+        <button
+          style={{ ...(view === "table" ? btn : btnGhost), fontSize: 13 }}
+          onClick={() => setView("table")}
+        >
+          Tabelle
+        </button>
+      </div>
+
       {/* SVG Graph */}
+      {view === "graph" && (
       <div style={{ background: C.panel2, borderRadius: 12, padding: 12, border: `1px solid ${C.line}` }}>
         <svg viewBox="0 0 400 260" style={{ width: "100%", height: "auto" }}>
           {/* Kanten */}
@@ -492,6 +636,12 @@ function DijkstraStepper() {
           })}
         </svg>
       </div>
+      )}
+
+      {/* Iterationstabelle */}
+      {view === "table" && (
+        <DijkstraTable rows={tableRows} currentIter={st.iter} />
+      )}
 
       {/* Priority Queue Anzeige */}
       <div style={{ marginTop: 14 }}>
