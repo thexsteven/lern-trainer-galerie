@@ -677,6 +677,477 @@ function RelaxVis() {
 }
 
 /* =========================================================================
+   VIS 2b — PSEUDOCODE-STEPPER
+   Eigenständiger, interaktiver Stepper, der den Pseudocode Zeile für Zeile
+   hervorhebt. Schwerpunkt: Priority Queue (Heap-Interna / Versickern) und
+   Relax(u, v; w). Nutzt das vorhandene Design-System (C, Card, Controls, …).
+   ========================================================================= */
+
+// Die drei Code-Panels (1-basiert, Notation der Vorlesung).
+const PANEL_A = {
+  id: "a",
+  title: "Dijkstra (Hauptschleife)",
+  lines: [
+    "Dijkstra(WeightedGraph G = (V, E; w), Vertex s)",
+    "  Initialize(G, s)",
+    "  Q = new PriorityQueue(V, d)",
+    "  while not Q.Empty() do",
+    "    u = Q.ExtractMin()",
+    "    foreach v ∈ Adj[u] do",
+    "      Relax(u, v; w)",
+    "    u.color = black",
+  ],
+};
+const PANEL_B = {
+  id: "b",
+  title: "Relax(u, v; w)",
+  lines: [
+    "Relax(u, v; w)",
+    "  if v.d > u.d + w(u, v) then",
+    "    v.color = gray",
+    "    v.d = u.d + w(u, v)",
+    "    v.π = u",
+    "    Q.DecreaseKey(v, v.d)",
+  ],
+};
+const PANEL_C = {
+  id: "c",
+  title: "Priority Queue (Min-Heap)",
+  lines: [
+    "ExtractMin()",
+    '  if Q.heap-size < 1 then error "Heap underflow"',
+    "  min = A[1]",
+    "  A[1] = A[Q.heap-size]",
+    "  Q.heap-size − −",
+    "  MinHeapify(A, 1)            // Versickern",
+    "  return min",
+    "",
+    'MinHeapify(A, i)             // „Versickern": A[i] sinkt nach unten',
+    "  ℓ = left(i); r = right(i)",
+    "  if ℓ ≤ Q.heap-size and A[ℓ] < A[i] then smallest = ℓ",
+    "  else smallest = i",
+    "  if r ≤ Q.heap-size and A[r] < A[smallest] then smallest = r",
+    "  if smallest ≠ i then",
+    "    swap(A, i, smallest)",
+    "    MinHeapify(A, smallest)",
+    "",
+    'DecreaseKey(index i, prio p)  // „Hochsickern"',
+    '  if p > A[i] then error "Priorität zu groß"',
+    "  A[i] = p",
+    "  while i > 1 and A[parent(i)] > A[i] do",
+    "    swap(A, i, parent(i))",
+    "    i = parent(i)",
+  ],
+};
+const PC_PANELS = [PANEL_A, PANEL_B, PANEL_C];
+
+// Mini-Helfer: Heap-Snapshot { A, size, hi (hervorgehobene 1-basierte Indizes) }
+const h = (A, size, hi) => ({ A, size, hi });
+
+// Vorab berechnete Schrittfolge (Frames). Jeder Frame markiert die laufende
+// Zeile, die Aufruf-Kette (crumb) und – bei Heap-Operationen – den Heap-Zustand.
+const PC_FRAMES = [
+  // ── Akt 1: ExtractMin ⇒ MinHeapify (Versickern) ──
+  { panel: "a", line: 3, crumb: ["Dijkstra"], heap: null,
+    msg: "Die Hauptschleife läuft, solange die Priority Queue nicht leer ist. Du holst dir jetzt den günstigsten Knoten." },
+  { panel: "a", line: 4, crumb: ["Dijkstra", "ExtractMin"], heap: h([2, 5, 4, 9, 7, 8], 6, []),
+    msg: "Dijkstra ruft Q.ExtractMin() auf — der Code springt in die Priority-Queue-Operation." },
+  { panel: "c", line: 1, crumb: ["Dijkstra", "ExtractMin"], heap: h([2, 5, 4, 9, 7, 8], 6, []),
+    msg: "heap-size = 6 ≥ 1 — kein Underflow, es geht weiter." },
+  { panel: "c", line: 2, crumb: ["Dijkstra", "ExtractMin"], heap: h([2, 5, 4, 9, 7, 8], 6, [1]),
+    msg: "Beim Min-Heap steht das Minimum immer an der Wurzel: min = A[1] = 2." },
+  { panel: "c", line: 3, crumb: ["Dijkstra", "ExtractMin"], heap: h([8, 5, 4, 9, 7, 8], 6, [1, 6]),
+    msg: "Das letzte Element A[6] = 8 wird an die Wurzel A[1] kopiert." },
+  { panel: "c", line: 4, crumb: ["Dijkstra", "ExtractMin"], heap: h([8, 5, 4, 9, 7, 8], 5, []),
+    msg: "heap-size wird auf 5 verkleinert — das alte letzte Element gehört nicht mehr zum Heap (ausgegraut)." },
+  { panel: "c", line: 5, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([8, 5, 4, 9, 7, 8], 5, [1]),
+    msg: "Die Wurzel 8 verletzt die Heap-Eigenschaft. MinHeapify lässt sie „versickern“." },
+  { panel: "c", line: 9, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([8, 5, 4, 9, 7, 8], 5, [1, 2, 3]),
+    msg: "Für i = 1: linkes Kind ℓ = 2 (Wert 5), rechtes Kind r = 3 (Wert 4)." },
+  { panel: "c", line: 10, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([8, 5, 4, 9, 7, 8], 5, [1, 2]),
+    msg: "A[2] = 5 < A[1] = 8 → smallest = 2 (vorerst das linke Kind)." },
+  { panel: "c", line: 12, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([8, 5, 4, 9, 7, 8], 5, [2, 3]),
+    msg: "A[3] = 4 < A[smallest] = 5 → smallest = 3 (das rechte Kind ist noch kleiner)." },
+  { panel: "c", line: 13, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([8, 5, 4, 9, 7, 8], 5, [1, 3]),
+    msg: "smallest = 3 ≠ i = 1 → es muss getauscht werden." },
+  { panel: "c", line: 14, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([4, 5, 8, 9, 7, 8], 5, [1, 3]),
+    msg: "swap(A,1,3): die Werte 8 und 4 tauschen die Plätze. Die Wurzel ist jetzt 4." },
+  { panel: "c", line: 15, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([4, 5, 8, 9, 7, 8], 5, [3]),
+    msg: "Rekursiver Aufruf MinHeapify(A,3) — die 8 sinkt evtl. weiter." },
+  { panel: "c", line: 9, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([4, 5, 8, 9, 7, 8], 5, [3]),
+    msg: "Für i = 3: ℓ = 6 und r = 7 liegen beide außerhalb von heap-size = 5 — Index 3 hat keine Kinder mehr." },
+  { panel: "c", line: 11, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([4, 5, 8, 9, 7, 8], 5, [3]),
+    msg: "Kein Kind ist kleiner → smallest = i = 3." },
+  { panel: "c", line: 13, crumb: ["Dijkstra", "ExtractMin", "MinHeapify (Versickern)"], heap: h([4, 5, 8, 9, 7, 8], 5, [3]),
+    msg: "smallest = i → keine Vertauschung mehr. Das Versickern ist beendet." },
+  { panel: "c", line: 6, crumb: ["Dijkstra", "ExtractMin"], heap: h([4, 5, 8, 9, 7, 8], 5, []),
+    msg: "Der Heap ist wieder gültig. ExtractMin gibt min = 2 zurück." },
+  { panel: "a", line: 4, crumb: ["Dijkstra"], heap: null,
+    msg: "Zurück in Dijkstra: u = 2 ist jetzt der finalisierte Knoten." },
+  { panel: "a", line: 5, crumb: ["Dijkstra"], heap: null,
+    msg: "Für jeden Nachbarn v von u wird nun Relax aufgerufen." },
+  // ── Akt 2: Relax ⇒ DecreaseKey (Hochsickern) ──
+  { panel: "a", line: 6, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "Dijkstra ruft Relax für die Kante u → v auf — der Code springt in Relax." },
+  { panel: "b", line: 1, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "Relax prüft: Ist der bisherige Wert v.d größer als der neue Weg u.d + w(u,v)? Nur dann lohnt das Update." },
+  { panel: "b", line: 2, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "v wird grau markiert — es ist nun „in Bearbeitung“." },
+  { panel: "b", line: 3, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "v.d bekommt den neuen, kleineren Distanzwert." },
+  { panel: "b", line: 4, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "v.π = u: v merkt sich u als Vorgänger — so entsteht der Kürzeste-Wege-Baum." },
+  { panel: "b", line: 5, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 5, 4, 9, 7, 8], 6, [5]),
+    msg: "Weil v.d kleiner wurde, muss die Queue v neu einsortieren. Beispiel (frischer Heap): der Schlüssel an Index 5 sinkt von 7 auf 1." },
+  { panel: "c", line: 18, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 5, 4, 9, 7, 8], 6, [5]),
+    msg: "Neue Priorität p = 1 ist nicht größer als A[5] = 7 — das Verkleinern ist erlaubt." },
+  { panel: "c", line: 19, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 5, 4, 9, 1, 8], 6, [5]),
+    msg: "A[5] wird auf 1 gesetzt. Jetzt ist die Heap-Eigenschaft nach oben evtl. verletzt." },
+  { panel: "c", line: 20, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 5, 4, 9, 1, 8], 6, [5, 2]),
+    msg: "parent(5) = ⌊5/2⌋ = 2. A[2] = 5 > A[5] = 1 → die Schleife läuft, es wird getauscht." },
+  { panel: "c", line: 21, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 1, 4, 9, 5, 8], 6, [2, 5]),
+    msg: "swap(A,5,2): die Werte 1 und 5 tauschen. Der kleine Schlüssel rückt nach oben." },
+  { panel: "c", line: 22, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 1, 4, 9, 5, 8], 6, [2]),
+    msg: "i wird zu parent(5) = 2 — wir steigen eine Ebene höher." },
+  { panel: "c", line: 20, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([2, 1, 4, 9, 5, 8], 6, [2, 1]),
+    msg: "parent(2) = 1. A[1] = 2 > A[2] = 1 → weiter hochsickern." },
+  { panel: "c", line: 21, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([1, 2, 4, 9, 5, 8], 6, [1, 2]),
+    msg: "swap(A,2,1): die 1 erreicht die Wurzel." },
+  { panel: "c", line: 22, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([1, 2, 4, 9, 5, 8], 6, [1]),
+    msg: "i wird zu parent(2) = 1 — wir sind an der Wurzel angekommen." },
+  { panel: "c", line: 20, crumb: ["Dijkstra", "Relax", "DecreaseKey (Hochsickern)"], heap: h([1, 2, 4, 9, 5, 8], 6, [1]),
+    msg: "i = 1 → die Schleifenbedingung ist falsch. Der Heap ist wieder gültig, die neue Wurzel ist 1." },
+  { panel: "b", line: 5, crumb: ["Dijkstra", "Relax"], heap: null,
+    msg: "DecreaseKey ist fertig — zurück in Relax." },
+  { panel: "a", line: 6, crumb: ["Dijkstra"], heap: null,
+    msg: "Zurück in Dijkstra. So ruft die Hauptschleife ExtractMin und (über Relax) DecreaseKey immer wieder auf, bis die Queue leer ist." },
+];
+
+// Baumpositionen für die 1-basierten Heap-Indizes 1..7 (viewBox 0 0 340 190)
+const HEAP_POS = {
+  1: { x: 170, y: 28 },
+  2: { x: 95, y: 92 },
+  3: { x: 245, y: 92 },
+  4: { x: 50, y: 158 },
+  5: { x: 140, y: 158 },
+  6: { x: 200, y: 158 },
+  7: { x: 290, y: 158 },
+};
+
+// Ein einzelnes Code-Panel mit Zeilennummern, aktiver & ausgeführter Zeile.
+function PcCodePanel({ lines, activeLine, executed }) {
+  let num = 0;
+  return (
+    <div
+      style={{
+        fontFamily: "ui-monospace, Menlo, monospace",
+        fontSize: 13.5,
+        background: C.panel2,
+        border: `1px solid ${C.line}`,
+        borderRadius: 12,
+        padding: "10px 0",
+        overflowX: "auto",
+      }}
+    >
+      {lines.map((ln, idx) => {
+        const blank = ln.trim() === "";
+        const n = blank ? null : ++num;
+        const isActive = idx === activeLine;
+        const isDone = executed.has(idx);
+        return (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              alignItems: "stretch",
+              background: isActive ? "rgba(94,234,212,0.14)" : "transparent",
+              borderLeft: `3px solid ${isActive ? C.accent2 : "transparent"}`,
+              opacity: isActive ? 1 : isDone ? 0.4 : 0.92,
+              transition: "background .25s, opacity .25s, border-color .25s",
+            }}
+          >
+            <span
+              style={{
+                width: 34,
+                textAlign: "right",
+                paddingRight: 10,
+                color: C.dim,
+                userSelect: "none",
+                flexShrink: 0,
+              }}
+            >
+              {n ?? ""}
+            </span>
+            <span
+              style={{
+                whiteSpace: "pre",
+                paddingRight: 12,
+                color: isActive ? C.text : isDone ? C.dim : C.text,
+                fontWeight: isActive ? 700 : 400,
+              }}
+            >
+              {ln === "" ? " " : ln}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Mini-Visualisierung des Heaps: 1-basiertes Array + optional Binärbaum.
+function HeapVis({ heap, showTree }) {
+  const { A, size, hi } = heap;
+  return (
+    <div
+      style={{
+        background: C.panel2,
+        border: `1px solid ${C.line}`,
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ color: C.dim, fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+        Min-Heap als 1-basiertes Array (heap-size = {size}):
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {A.map((val, idx0) => {
+          const idx = idx0 + 1;
+          const inHeap = idx <= size;
+          const isHi = hi.includes(idx);
+          return (
+            <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+              <div
+                key={`${val}-${isHi ? "h" : "n"}-${idx}`}
+                style={{
+                  width: 42,
+                  height: 42,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 9,
+                  fontWeight: 800,
+                  fontSize: 16,
+                  background: isHi ? C.gold : inHeap ? C.panel : "transparent",
+                  color: isHi ? C.bg : inHeap ? C.text : C.dim,
+                  border: `1px solid ${isHi ? C.gold : C.line}`,
+                  opacity: inHeap ? 1 : 0.35,
+                  animation: isHi ? "pop .35s ease" : "none",
+                }}
+              >
+                {val}
+              </div>
+              <div style={{ fontSize: 11, color: isHi ? C.gold : C.dim, fontWeight: isHi ? 700 : 400 }}>
+                {idx}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showTree && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ color: C.dim, fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+            … und als Binärbaum (left(i)=2i, right(i)=2i+1, parent(i)=⌊i/2⌋):
+          </div>
+          <svg viewBox="0 0 340 190" style={{ width: "100%", maxWidth: 380, height: "auto" }}>
+            {/* Kanten zuerst (liegen hinter den Knoten) */}
+            {A.map((val, idx0) => {
+              const idx = idx0 + 1;
+              if (idx === 1 || idx > size) return null;
+              const p = Math.floor(idx / 2);
+              const a = HEAP_POS[idx];
+              const b = HEAP_POS[p];
+              if (!a || !b) return null;
+              return <line key={"e" + idx} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={C.line} strokeWidth={2} />;
+            })}
+            {/* Knoten */}
+            {A.map((val, idx0) => {
+              const idx = idx0 + 1;
+              if (idx > size) return null;
+              const p = HEAP_POS[idx];
+              if (!p) return null;
+              const isHi = hi.includes(idx);
+              return (
+                <g key={"n" + idx}>
+                  <circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={18}
+                    fill={isHi ? C.gold : C.panel}
+                    stroke={isHi ? C.gold : C.accent2}
+                    strokeWidth={2}
+                    style={{ transition: "fill .3s, stroke .3s" }}
+                  />
+                  <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize={15} fontWeight="800" fill={isHi ? C.bg : C.text}>
+                    {val}
+                  </text>
+                  <text x={p.x} y={p.y - 24} textAnchor="middle" fontSize={11} fill={C.dim}>
+                    i={idx}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PseudocodeStepper() {
+  const frames = PC_FRAMES;
+  const [i, setI] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [view, setView] = useState(frames[0].panel);
+  const [showTree, setShowTree] = useState(false);
+  const timer = useRef(null);
+
+  // Beim Schrittwechsel springt das angezeigte Panel auf die laufende Ebene.
+  useEffect(() => {
+    setView(frames[i].panel);
+  }, [i, frames]);
+
+  useEffect(() => {
+    if (playing) {
+      timer.current = setInterval(() => {
+        setI((p) => {
+          if (p >= frames.length - 1) {
+            setPlaying(false);
+            return p;
+          }
+          return p + 1;
+        });
+      }, 1500);
+    }
+    return () => clearInterval(timer.current);
+  }, [playing, frames.length]);
+
+  const cur = frames[i];
+  const panel = PC_PANELS.find((p) => p.id === view) || PANEL_A;
+
+  // Schon ausgeführte Zeilen im aktuellen Besuch dieses Panels (dezent).
+  const executed = new Set();
+  if (view === cur.panel) {
+    for (let k = i; k >= 0 && frames[k].panel === cur.panel; k--) {
+      executed.add(frames[k].line);
+    }
+    executed.delete(cur.line);
+  }
+  const activeLine = view === cur.panel ? cur.line : -1;
+
+  return (
+    <Card>
+      <h3 style={{ margin: "0 0 4px", color: C.text, fontSize: 18 }}>
+        Der Code, Schritt für Schritt
+      </h3>
+      <p style={{ color: C.dim, fontSize: 14, margin: "0 0 16px", lineHeight: 1.6 }}>
+        Verfolge, wie Dijkstra die Priority-Queue-Operationen <strong>aufruft</strong>: Die
+        Hauptschleife ruft <code style={codeInline}>ExtractMin</code> (mit{" "}
+        <code style={codeInline}>MinHeapify</code> = „Versickern“) und über{" "}
+        <code style={codeInline}>Relax</code> auch <code style={codeInline}>DecreaseKey</code>{" "}
+        (= „Hochsickern“). Das Panel springt automatisch auf die gerade laufende Ebene.
+      </p>
+
+      {/* Tabs: Code-Panel wählen */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        {PC_PANELS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setView(p.id)}
+            style={{ ...(view === p.id ? btn : btnGhost), fontSize: 13 }}
+          >
+            {p.title}
+          </button>
+        ))}
+      </div>
+
+      {/* Aufruf-Kette (Breadcrumb) */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <span style={{ color: C.dim, fontSize: 12, fontWeight: 700, marginRight: 2 }}>Aufruf-Kette:</span>
+        {cur.crumb.map((c, idx) => {
+          const last = idx === cur.crumb.length - 1;
+          return (
+            <React.Fragment key={idx}>
+              {idx > 0 && <span style={{ color: C.dim }}>▸</span>}
+              <span
+                style={{
+                  background: last ? C.accent2 : C.panel2,
+                  color: last ? C.bg : C.text,
+                  border: `1px solid ${last ? C.accent2 : C.line}`,
+                  borderRadius: 8,
+                  padding: "5px 10px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {c}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Code-Panel */}
+      <PcCodePanel lines={panel.lines} activeLine={activeLine} executed={executed} />
+
+      {view !== cur.panel && (
+        <div style={{ color: C.dim, fontSize: 12.5, marginTop: 8, fontStyle: "italic" }}>
+          Du betrachtest gerade ein anderes Panel als den laufenden Schritt — tippe „Vor ▶“ oder wähle
+          das hervorgehobene Tab, um der Ausführung zu folgen.
+        </div>
+      )}
+
+      {/* Heap-Visualisierung (nur bei Heap-Operationen) */}
+      {cur.heap && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+            <button style={{ ...btnGhost, fontSize: 13 }} onClick={() => setShowTree((s) => !s)}>
+              {showTree ? "Baum ausblenden" : "Baum anzeigen"}
+            </button>
+          </div>
+          <HeapVis heap={cur.heap} showTree={showTree} />
+        </div>
+      )}
+
+      {/* Erklärtext zum Frame */}
+      <div
+        style={{
+          marginTop: cur.heap ? 0 : 14,
+          background: C.panel2,
+          border: `1px solid ${C.line}`,
+          borderRadius: 10,
+          padding: "12px 14px",
+          color: C.text,
+          fontSize: 14,
+          lineHeight: 1.6,
+          minHeight: 48,
+        }}
+      >
+        {cur.msg}
+      </div>
+
+      <Controls
+        playing={playing}
+        step={i}
+        total={frames.length}
+        onPlay={() => setPlaying((p) => !p)}
+        onPrev={() => { setPlaying(false); setI((p) => Math.max(0, p - 1)); }}
+        onNext={() => { setPlaying(false); setI((p) => Math.min(frames.length - 1, p + 1)); }}
+        onReset={() => { setPlaying(false); setI(0); }}
+      />
+
+      <div style={{ marginTop: 14 }}>
+        <Tag color={C.accent2}>linker Balken / aktive Zeile</Tag>
+        <Tag color={C.gold}>gelb: gerade getauschte Heap-Indizes</Tag>
+        <Tag color={C.panel2}>ausgegraut: außerhalb von heap-size</Tag>
+      </div>
+    </Card>
+  );
+}
+
+/* =========================================================================
    VIS 3 — BFS vs. DIJKSTRA nebeneinander
    ========================================================================= */
 function CompareVis() {
@@ -1052,13 +1523,34 @@ export default function DijkstraErklaerer() {
           <RelaxVis />
         </Section>
 
-        {/* 3. VARIANTEN / VERGLEICH */}
-        <Section kicker="Einordnung" title="3 · Dijkstra ist „BFS mit Gewichten“">
+        {/* 3. PSEUDOCODE INTERAKTIV */}
+        <Section kicker="Der Code, Schritt für Schritt" title="3 · Pseudocode interaktiv">
+          <p style={{ color: C.dim, fontSize: 15.5, margin: "0 0 20px" }}>
+            Jetzt sehen wir den <strong>echten Pseudocode</strong> – und zwar so, dass sichtbar wird,
+            wie die Hauptschleife die <strong>Priority Queue</strong> aufruft. Besonders spannend ist,
+            was <em>innerhalb</em> der Queue passiert: das <strong>Versickern</strong> (MinHeapify) beim
+            Entnehmen und das <strong>Hochsickern</strong> (DecreaseKey) nach einem Relax.
+          </p>
+          <InfoBox title="Min-Heap statt Max-Heap (spiegelbildlich zu VL06)">
+            In VL06 wurde der <strong>Max</strong>-Heap gezeigt (FindMax / ExtractMax / IncreaseKey,
+            Versickern via <code style={codeInline}>MaxHeapify</code>). Dijkstra braucht aber immer den{" "}
+            <em>kleinsten</em> d-Wert zuerst, also eine <strong>Min</strong>-Priority-Queue. Der Code
+            unten ist die exakt <strong>spiegelbildliche</strong> Variante: aus „größer“ wird „kleiner“,
+            aus <code style={codeInline}>ExtractMax</code> wird <code style={codeInline}>ExtractMin</code>,
+            aus <code style={codeInline}>MaxHeapify</code> wird <code style={codeInline}>MinHeapify</code>,
+            aus <code style={codeInline}>IncreaseKey</code> wird <code style={codeInline}>DecreaseKey</code>.
+            Die Mechanik (Versickern/Hochsickern) bleibt identisch.
+          </InfoBox>
+          <PseudocodeStepper />
+        </Section>
+
+        {/* 4. VARIANTEN / VERGLEICH */}
+        <Section kicker="Einordnung" title="4 · Dijkstra ist „BFS mit Gewichten“">
           <CompareVis />
         </Section>
 
-        {/* 4. SONDERFALL / ÜBERBLICK ANDERE VERFAHREN */}
-        <Section kicker="Über Dijkstra hinaus" title="4 · Wann reicht Dijkstra nicht?">
+        {/* 5. SONDERFALL / ÜBERBLICK ANDERE VERFAHREN */}
+        <Section kicker="Über Dijkstra hinaus" title="5 · Wann reicht Dijkstra nicht?">
           <Card>
             <p style={{ margin: "0 0 16px", fontSize: 15.5 }}>
               Dijkstra braucht zwingend <strong>nicht-negative</strong> Gewichte. Für andere
@@ -1078,8 +1570,8 @@ export default function DijkstraErklaerer() {
           </InfoBox>
         </Section>
 
-        {/* 5. ANALYSE / LAUFZEIT */}
-        <Section kicker="Laufzeitanalyse" title="5 · Wie kommt man auf O(E + V log V)?">
+        {/* 6. ANALYSE / LAUFZEIT */}
+        <Section kicker="Laufzeitanalyse" title="6 · Wie kommt man auf O(E + V log V)?">
           <Card style={{ marginBottom: 20 }}>
             <p style={{ margin: "0 0 14px", fontSize: 15.5 }}>
               Wir zählen, wie oft die beiden teuren Operationen vorkommen:
@@ -1129,8 +1621,8 @@ export default function DijkstraErklaerer() {
           </InfoBox>
         </Section>
 
-        {/* 6. ZUSAMMENFASSUNG */}
-        <Section kicker="Auf einen Blick" title="6 · Das Wichtigste in einem Satz">
+        {/* 7. ZUSAMMENFASSUNG */}
+        <Section kicker="Auf einen Blick" title="7 · Das Wichtigste in einem Satz">
           <Card
             style={{
               background: "rgba(94,234,212,0.07)",
@@ -1150,8 +1642,8 @@ export default function DijkstraErklaerer() {
           </Card>
         </Section>
 
-        {/* 7. GLOSSAR */}
-        <Section kicker="Nachschlagen" title="7 · Glossar – alle Begriffe & Symbole">
+        {/* 8. GLOSSAR */}
+        <Section kicker="Nachschlagen" title="8 · Glossar – alle Begriffe & Symbole">
           <div
             style={{
               display: "grid",
@@ -1169,7 +1661,12 @@ export default function DijkstraErklaerer() {
             <GlossEntry term="Relax(u, v; w)" def="Prüft: ist d[u] + w(u,v) < d[v]? Wenn ja, wird d[v] verkleinert und π[v] = u gesetzt." />
             <GlossEntry term="Priority Queue" def="Vorrang-Warteschlange: gibt immer das Element mit kleinstem Schlüssel (hier kleinstes d) zuerst heraus." />
             <GlossEntry term="ExtractMin" def="Operation der Priority Queue: entnimmt das Element mit dem kleinsten d. Wird |V|-mal aufgerufen." />
-            <GlossEntry term="DecreaseKey" def="Operation der Priority Queue: verkleinert den Schlüssel eines Elements und sortiert es neu ein. Wird bis zu |E|-mal aufgerufen." />
+            <GlossEntry term="DecreaseKey" def="Operation der Priority Queue: verkleinert den Schlüssel eines Elements und sortiert es per „Hochsickern“ neu ein. Wird bis zu |E|-mal aufgerufen." />
+            <GlossEntry term="MinHeapify / Versickern" def="Stellt die Min-Heap-Eigenschaft ab Index i wieder her, indem ein zu großes Element nach unten „versickert“ – es tauscht so lange mit dem kleineren Kind, bis es kleiner als beide Kinder ist. Kern von ExtractMin." />
+            <GlossEntry term="Hochsickern" def="Gegenstück zum Versickern: ein verkleinerter Schlüssel tauscht so lange mit seinem Elternknoten, bis er nicht mehr kleiner als dieser ist. Kern von DecreaseKey." />
+            <GlossEntry term="heap-size" def="Anzahl der gültigen Heap-Elemente im Array A. Elemente mit Index > heap-size gehören (noch/nicht mehr) zum Heap." />
+            <GlossEntry term="left / right / parent" def="1-basierte Index-Arithmetik im Heap-Array: left(i)=2i, right(i)=2i+1, parent(i)=⌊i/2⌋. So findet man Kinder und Eltern ohne Zeiger." />
+            <GlossEntry term="Min-Heap vs. Max-Heap" def="Im Min-Heap steht das kleinste Element an der Wurzel (für Dijkstra), im Max-Heap (VL06) das größte. Beide arbeiten spiegelbildlich mit denselben Mechanismen." />
             <GlossEntry term="Knotenfarben" def="weiß = unentdeckt, grau = in der Queue/verbessert, schwarz = fertig (d endgültig)." />
             <GlossEntry term="O(...) / Θ(...)" def="O = obere Schranke für das Wachstum der Laufzeit. Θ (Theta) = exakte Größenordnung (obere UND untere Schranke)." />
             <GlossEntry term="deg(u) / Ausgangsgrad" def="Anzahl der von u ausgehenden Kanten. Die Summe aller deg(u) über alle Knoten ist |E|." />
