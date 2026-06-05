@@ -252,50 +252,96 @@ const ADJ = {
 const EDGES = [];
 Object.entries(ADJ).forEach(([a, list]) => list.forEach((b) => EDGES.push([a, b])));
 
-// DFS simulieren -> Schritt-Liste erzeugen (jeder Schritt = Snapshot)
+// Pseudocode-Panels — die Zeilenindizes stimmen mit den snap(...)-Aufrufen
+// in buildDfsSteps überein (panel + line markieren die laufende Zeile).
+const PANEL_MAIN = {
+  id: "main",
+  title: "DFS(G) — Hauptschleife",
+  lines: [
+    "DFS(Graph G = (V, E))",
+    "  foreach u ∈ V:",
+    "    u.color = white",
+    "    u.π = nil",
+    "  time = 0",
+    "  foreach u ∈ V:",
+    "    if u.color == white:",
+    "      DFSVisit(G, u)",
+  ],
+};
+const PANEL_VISIT = {
+  id: "visit",
+  title: "DFSVisit(G, u) — rekursiver Abstieg",
+  lines: [
+    "DFSVisit(Graph G, Vertex u)",
+    "  time = time + 1",
+    "  u.d = time;  u.color = gray",
+    "  foreach v ∈ Adj[u]:",
+    "    if v.color == white:",
+    "      v.π = u",
+    "      DFSVisit(G, v)",
+    "  time = time + 1",
+    "  u.f = time;  u.color = black",
+  ],
+};
+
+// DFS simulieren -> Schritt-Liste erzeugen (jeder Schritt = Snapshot).
+// Zusätzlich aufgezeichnet: aktive Codezeile (panel/line) und Rekursions-Stapel.
 function buildDfsSteps() {
   const color = {}, d = {}, f = {}, pi = {};
   Object.keys(NODES).forEach((k) => (color[k] = "white"));
   let time = 0;
   const steps = [];
   const edgeClass = {}; // "a-b" -> Baum/Rück/Vor/Kreuz
+  const stack = [];     // Aufruf-Stapel der laufenden DFSVisit-Aufrufe
 
-  const snap = (msg, active, edge) =>
+  const snap = (msg, active, edge, panel, line) =>
     steps.push({
       color: { ...color }, d: { ...d }, f: { ...f }, pi: { ...pi },
       edgeClass: { ...edgeClass }, time, msg, active, edge,
+      panel, line, stack: [...stack],
     });
 
   function visit(node) {
+    stack.push(node);
+    snap(`DFSVisit(${node}) wird aufgerufen — ${node} kommt auf den Aufruf-Stapel.`, node, null, "visit", 0);
     time++; d[node] = time; color[node] = "gray";
-    snap(`${node} entdeckt (grau) · d=${time}`, node, null);
+    snap(`${node} entdeckt: grau gefärbt, d[${node}] = ${time}.`, node, null, "visit", 2);
     for (const nb of ADJ[node]) {
       const key = `${node}-${nb}`;
+      snap(`Betrachte Nachbarn ${nb} ∈ Adj[${node}] (Kante ${node}→${nb}).`, node, key, "visit", 3);
       if (color[nb] === "white") {
+        snap(`${nb} ist weiß ⇒ Bedingung erfüllt: das wird eine Baumkante.`, node, key, "visit", 4);
         edgeClass[key] = "Baum";
         pi[nb] = node;
-        snap(`Kante ${node}→${nb}: Ziel weiß ⇒ Baumkante, steige ab`, node, key);
+        snap(`Setze π[${nb}] = ${node} — ${node} wird Elternknoten im DFS-Wald.`, node, key, "visit", 5);
+        snap(`Rekursiver Aufruf DFSVisit(${nb}) — tiefer in den Graphen.`, node, key, "visit", 6);
         visit(nb);
+        snap(`Zurück in DFSVisit(${node}); nächste Kante aus Adj[${node}] prüfen.`, node, null, "visit", 3);
       } else if (color[nb] === "gray") {
         edgeClass[key] = "Rück";
-        snap(`Kante ${node}→${nb}: Ziel grau ⇒ Rückwärtskante (Kreis!)`, node, key);
+        snap(`${nb} ist grau ⇒ Bedingung nicht erfüllt. Rückwärtskante: ${node} zeigt auf einen aktiven Vorfahren ⇒ Kreis!`, node, key, "visit", 4);
       } else {
-        // schwarz: Vor- oder Kreuzkante
         edgeClass[key] = d[node] < d[nb] ? "Vor" : "Kreuz";
-        snap(`Kante ${node}→${nb}: Ziel schwarz ⇒ ${edgeClass[key]}kante`, node, key);
+        snap(`${nb} ist schwarz ⇒ Bedingung nicht erfüllt. ${edgeClass[key]}kante (d[${node}] ${d[node] < d[nb] ? "<" : ">"} d[${nb}]).`, node, key, "visit", 4);
       }
     }
     time++; f[node] = time; color[node] = "black";
-    snap(`${node} fertig (schwarz) · f=${time}`, node, null);
+    snap(`Alle Nachbarn erledigt ⇒ ${node} fertig: schwarz gefärbt, f[${node}] = ${time}.`, node, null, "visit", 8);
+    stack.pop();
   }
 
+  snap("Initialisierung: alle Knoten weiß, π = nil, globale Uhr time = 0.", null, null, "main", 4);
   for (const n of Object.keys(NODES)) {
     if (color[n] === "white") {
-      snap(`Neuer Startknoten ${n} (Hauptschleife)`, n, null);
+      snap(`Hauptschleife prüft ${n}: weiß ⇒ neuer Wurzelbaum im DFS-Wald.`, n, null, "main", 6);
+      snap(`Starte DFSVisit(${n}).`, n, null, "main", 7);
       visit(n);
+      snap(`DFSVisit(${n}) beendet — zurück in der Hauptschleife.`, null, null, "main", 5);
+    } else {
+      snap(`Hauptschleife prüft ${n}: bereits ${color[n] === "black" ? "fertig" : "entdeckt"} (nicht weiß) ⇒ überspringen.`, n, null, "main", 6);
     }
   }
-  snap("DFS abgeschlossen — alle Knoten schwarz.", null, null);
+  snap("DFS abgeschlossen — alle Knoten schwarz, der DFS-Wald ist vollständig.", null, null, "main", 5);
   return steps;
 }
 const DFS_STEPS = buildDfsSteps();
@@ -304,9 +350,173 @@ const NODE_FILL = { white: C.panel2, gray: C.gold, black: "#0a0c11" };
 const NODE_STROKE = { white: C.line, gray: C.gold, black: C.good };
 const EDGE_COLOR = { Baum: C.accent, Rück: C.warn, Vor: C.accent2, Kreuz: C.dim };
 
+// Layout des DFS-Waldes (fixe Positionen; Knoten/Kanten erscheinen beim Lauf).
+// Baum 1: u → v → y → x (Kette) · Baum 2: w → z
+const DFS_TREE_POS = {
+  u: { x: 120, y: 44 },
+  v: { x: 120, y: 112 },
+  y: { x: 120, y: 180 },
+  x: { x: 120, y: 248 },
+  w: { x: 340, y: 44 },
+  z: { x: 340, y: 112 },
+};
+const DFS_ROOTS = ["u", "w"];
+
+// Kleine Style-Helfer für Tabs (Ansichtswechsel) und Stapel-Chips.
+const tabActive = {
+  background: C.accent, color: C.bg, border: "none", borderRadius: 8,
+  padding: "7px 14px", fontWeight: 700, cursor: "pointer", fontSize: 13,
+};
+const tabGhost = {
+  background: "transparent", color: C.text, border: `1px solid ${C.line}`,
+  borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13,
+};
+const stackChip = (last) => ({
+  background: last ? C.gold : C.panel2, color: last ? C.bg : C.text,
+  border: `1px solid ${last ? C.gold : C.line}`, borderRadius: 8,
+  padding: "4px 10px", fontSize: 12.5, fontWeight: 700,
+});
+
+// Ein Pseudocode-Panel mit Zeilennummern; die aktive Zeile wird hervorgehoben.
+function DfsCodePanel({ panel, isActivePanel, activeLine }) {
+  let num = 0;
+  return (
+    <div
+      style={{
+        fontFamily: "ui-monospace, Menlo, monospace",
+        fontSize: 13,
+        background: C.bg,
+        border: `1px solid ${C.line}`,
+        borderRadius: 10,
+        padding: "8px 0",
+        opacity: isActivePanel ? 1 : 0.5,
+        transition: "opacity .3s",
+      }}
+    >
+      <div
+        style={{
+          padding: "2px 14px 8px",
+          color: isActivePanel ? C.accent : C.dim,
+          fontSize: 12,
+          fontWeight: 700,
+          borderBottom: `1px solid ${C.line}`,
+          marginBottom: 6,
+        }}
+      >
+        {panel.title}
+      </div>
+      {panel.lines.map((ln, idx) => {
+        const isActive = isActivePanel && idx === activeLine;
+        return (
+          <div
+            key={idx}
+            style={{
+              display: "flex",
+              background: isActive ? "rgba(252,211,77,0.16)" : "transparent",
+              borderLeft: `3px solid ${isActive ? C.gold : "transparent"}`,
+              transition: "background .25s, border-color .25s",
+            }}
+          >
+            <span
+              style={{
+                width: 30,
+                textAlign: "right",
+                paddingRight: 10,
+                color: C.dim,
+                userSelect: "none",
+                flexShrink: 0,
+              }}
+            >
+              {++num}
+            </span>
+            <span
+              style={{
+                whiteSpace: "pre",
+                paddingRight: 12,
+                color: C.text,
+                fontWeight: isActive ? 700 : 400,
+              }}
+            >
+              {ln}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Der DFS-Wald als wachsender Baum: Knoten erscheinen beim Entdecken,
+// Baumkanten entstehen aus den π-Zeigern des aktuellen Snapshots.
+function DfsTreeVis({ S }) {
+  const ids = Object.keys(DFS_TREE_POS);
+  return (
+    <svg viewBox="0 0 460 300" style={{ width: "100%", background: C.bg, borderRadius: 12 }}>
+      <defs>
+        <marker id="ahtree" markerWidth="10" markerHeight="10" refX="8" refY="3"
+                orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,3 L0,6 Z" fill={C.accent} />
+        </marker>
+      </defs>
+
+      {/* Wurzel-Beschriftung */}
+      {DFS_ROOTS.map((r) => {
+        const p = DFS_TREE_POS[r];
+        const discovered = !!S.d[r];
+        return (
+          <text key={"root" + r} x={p.x} y={p.y - 30} textAnchor="middle"
+                fontSize="11" fill={discovered ? C.accent : C.dim} fontWeight="700">
+            Wurzel
+          </text>
+        );
+      })}
+
+      {/* Baumkanten aus π */}
+      {ids.map((n) => {
+        const par = S.pi[n];
+        if (!par) return null;
+        const A = DFS_TREE_POS[par], B = DFS_TREE_POS[n];
+        const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy), r = 24;
+        const sx = A.x + (dx / len) * r, sy = A.y + (dy / len) * r;
+        const ex = B.x - (dx / len) * r, ey = B.y - (dy / len) * r;
+        return (
+          <line key={"te" + n} x1={sx} y1={sy} x2={ex} y2={ey}
+                stroke={C.accent} strokeWidth={2.5} markerEnd="url(#ahtree)"
+                style={{ transition: "all .3s" }} />
+        );
+      })}
+
+      {/* Knoten */}
+      {ids.map((n) => {
+        const p = DFS_TREE_POS[n];
+        const col = S.color[n];
+        const discovered = !!S.d[n];
+        const active = S.active === n;
+        return (
+          <g key={n} style={{ transition: "all .3s", opacity: discovered ? 1 : 0.3 }}>
+            <circle cx={p.x} cy={p.y} r={22}
+                    fill={NODE_FILL[col]} stroke={active ? C.gold : NODE_STROKE[col]}
+                    strokeWidth={active ? 4 : 2} style={{ transition: "fill .3s, stroke .3s" }} />
+            <text x={p.x} y={p.y + 5} textAnchor="middle"
+                  fill={col === "gray" ? C.bg : C.text} fontSize="15" fontWeight="700">
+              {n}
+            </text>
+            {discovered && (
+              <text x={p.x + 30} y={p.y + 4} textAnchor="start" fill={C.dim} fontSize="11">
+                {S.d[n] || "–"}/{S.f[n] || "–"}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function VisDFS() {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [view, setView] = useState("graph"); // "graph" | "tree"
   const total = DFS_STEPS.length;
 
   useEffect(() => {
@@ -358,46 +568,79 @@ function VisDFS() {
   return (
     <Card>
       <div style={{ fontWeight: 700, marginBottom: 4, color: C.text }}>
-        DFS live: Färben & Besuchsintervalle
+        DFS live: Code, Färbung & DFS-Wald
       </div>
       <div style={{ color: C.dim, fontSize: 14, marginBottom: 14 }}>
-        Beobachte, wie jeder Knoten von <em>weiß</em> (unentdeckt) → <em>grau</em>{" "}
-        (in Bearbeitung) → <em>schwarz</em> (fertig) wandert. Über jeder Kante steht beim
-        Durchlaufen, welcher Kantentyp sie ist.
+        Verfolge synchron, welche <strong>Pseudocode-Zeile</strong> gerade läuft, wie jeder Knoten
+        von <em>weiß</em> → <em>grau</em> → <em>schwarz</em> wandert und wie daraus der{" "}
+        <strong>DFS-Wald</strong> (der Baum aus allen Baumkanten) wächst. Schalte die Ansicht
+        unten zwischen Graph und Baum um.
       </div>
 
-      <svg viewBox="0 0 500 260" style={{ width: "100%", background: C.bg, borderRadius: 12 }}>
-        <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3"
-                  orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L8,3 L0,6 Z" fill={C.dim} />
-          </marker>
-        </defs>
-        {EDGES.map(([a, b]) => arrow(a, b))}
-        {Object.entries(NODES).map(([id, p]) => {
-          const col = S.color[id];
-          const active = S.active === id;
-          return (
-            <g key={id} style={{ transition: "all .3s" }}>
-              <circle
-                cx={p.x} cy={p.y} r={22}
-                fill={NODE_FILL[col]} stroke={active ? C.gold : NODE_STROKE[col]}
-                strokeWidth={active ? 4 : 2}
-                style={{ transition: "fill .3s, stroke .3s" }}
-              />
-              <text x={p.x} y={p.y + 5} textAnchor="middle"
-                    fill={col === "gray" ? C.bg : C.text} fontSize="15" fontWeight="700">
-                {id}
-              </text>
-              {(S.d[id] || S.f[id]) && (
-                <text x={p.x} y={p.y + 38} textAnchor="middle" fill={C.dim} fontSize="11">
-                  {S.d[id] || "–"}/{S.f[id] || "–"}
+      {/* Pseudocode — beide Funktionen, die laufende Zeile leuchtet auf */}
+      <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
+        <DfsCodePanel panel={PANEL_MAIN} isActivePanel={S.panel === "main"} activeLine={S.line} />
+        <DfsCodePanel panel={PANEL_VISIT} isActivePanel={S.panel === "visit"} activeLine={S.line} />
+      </div>
+
+      {/* Aufruf-Stapel (Rekursionstiefe sichtbar machen) */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+        <span style={{ color: C.dim, fontSize: 12, fontWeight: 700 }}>Aufruf-Stapel:</span>
+        <span style={stackChip(S.stack.length === 0)}>DFS</span>
+        {S.stack.map((n, i) => (
+          <React.Fragment key={i}>
+            <span style={{ color: C.dim }}>▸</span>
+            <span style={stackChip(i === S.stack.length - 1)}>DFSVisit({n})</span>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Ansichtswechsel: Graph oder DFS-Wald */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <button style={view === "graph" ? tabActive : tabGhost} onClick={() => setView("graph")}>
+          Graph
+        </button>
+        <button style={view === "tree" ? tabActive : tabGhost} onClick={() => setView("tree")}>
+          DFS-Wald (Baum)
+        </button>
+      </div>
+
+      {view === "graph" ? (
+        <svg viewBox="0 0 500 260" style={{ width: "100%", background: C.bg, borderRadius: 12 }}>
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3"
+                    orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L8,3 L0,6 Z" fill={C.dim} />
+            </marker>
+          </defs>
+          {EDGES.map(([a, b]) => arrow(a, b))}
+          {Object.entries(NODES).map(([id, p]) => {
+            const col = S.color[id];
+            const active = S.active === id;
+            return (
+              <g key={id} style={{ transition: "all .3s" }}>
+                <circle
+                  cx={p.x} cy={p.y} r={22}
+                  fill={NODE_FILL[col]} stroke={active ? C.gold : NODE_STROKE[col]}
+                  strokeWidth={active ? 4 : 2}
+                  style={{ transition: "fill .3s, stroke .3s" }}
+                />
+                <text x={p.x} y={p.y + 5} textAnchor="middle"
+                      fill={col === "gray" ? C.bg : C.text} fontSize="15" fontWeight="700">
+                  {id}
                 </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+                {(S.d[id] || S.f[id]) && (
+                  <text x={p.x} y={p.y + 38} textAnchor="middle" fill={C.dim} fontSize="11">
+                    {S.d[id] || "–"}/{S.f[id] || "–"}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      ) : (
+        <DfsTreeVis S={S} />
+      )}
 
       <div
         style={{
@@ -801,34 +1044,14 @@ export default function Tiefensuche() {
               zerfällt). Die Hilfsfunktion <code>DFSVisit</code> steigt von einem Knoten aus
               rekursiv „in die Tiefe".
             </p>
-            <pre style={{
-              background: C.bg, border: `1px solid ${C.line}`, borderRadius: 10,
-              padding: 16, overflowX: "auto", fontSize: 13.5, lineHeight: 1.7, color: C.text,
-            }}>
-{`DFS(Graph G = (V, E))
-  foreach u ∈ V:                 # alle Knoten zurücksetzen
-      u.color = white
-      u.π    = nil               # π = Vorgänger im DFS-Wald
-  time = 0                       # globale Uhr
-  foreach u ∈ V:
-      if u.color == white:
-          DFSVisit(G, u)         # neuer Wurzelbaum
-
-DFSVisit(Graph G, Vertex u)
-  time = time + 1
-  u.d   = time;  u.color = gray  # entdeckt → grau, Startzeit
-  foreach v ∈ Adj[u]:            # Adj[u] = Nachbarn von u
-      if v.color == white:
-          v.π = u
-          DFSVisit(G, v)         # ← Rekursion: tiefer rein!
-  time = time + 1
-  u.f   = time;  u.color = black # alle Nachbarn erledigt → schwarz`}
-            </pre>
             <p style={{ lineHeight: 1.8, marginBottom: 0, color: C.dim, fontSize: 14 }}>
               <code style={{ color: C.accent }}>Adj[u]</code> ist die <em>Adjazenzliste</em> — die
               Liste der direkten Nachbarn von u. <code style={{ color: C.accent }}>u.π</code> (Pi)
               ist der Knoten, von dem aus u entdeckt wurde — der „Elternknoten" im{" "}
-              <strong>DFS-Wald</strong> (der Baumstruktur, die durch alle Baumkanten entsteht).
+              <strong>DFS-Wald</strong> (der Baumstruktur, die durch alle Baumkanten entsteht). Im{" "}
+              interaktiven Erklärer unten kannst du <strong>beide Funktionen Zeile für Zeile</strong>{" "}
+              mitlaufen lassen — der Aufruf-Stapel zeigt dabei, wie tief die Rekursion gerade steckt,
+              und die Baum-Ansicht baut den DFS-Wald live aus den <code style={{ color: C.accent }}>π</code>-Zeigern auf.
             </p>
           </Card>
 
