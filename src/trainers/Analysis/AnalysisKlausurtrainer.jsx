@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+
+// Sanftes Scrollen zu einer Sektion per id (mit scrollMarginTop-Offset der Sektion).
+function scrollToId(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 // ===================================================================
 //  Analysis Klausurtrainer (Gesamt-Trainer)
 //  Prof. Dr. Veronika Lesch, DHBW Mosbach
 //  INF23 Haupt-/Nachklausur + INF24 Hauptklausur
 //  Alle Aufgabentypen, jeweils an einer echten Klausuraufgabe
-//  Schritt fuer Schritt durchgerechnet.
+//  Schritt für Schritt durchgerechnet.
 // ===================================================================
 
 const C = {
@@ -15,9 +22,9 @@ const C = {
   line: "#2a2f3d",
   text: "#e6e8ee",
   dim: "#9aa1b1",
-  accent: "#3b82f6",   // Marineblau - primaer: Methode/aktiver Loesungsschritt
-  accent2: "#22d3ee",  // Cyan - sekundaer: Konzept-Einschuebe, Varianten
-  good: "#86efac",     // gruen - korrektes Zwischenergebnis / Endergebnis
+  accent: "#3b82f6",   // Marineblau - primär: Methode/aktiver Lösungsschritt
+  accent2: "#22d3ee",  // Cyan - sekundär: Konzept-Einschübe, Varianten
+  good: "#86efac",     // grün - korrektes Zwischenergebnis / Endergebnis
   warn: "#fca5a5",     // rot - typische Falle / Fehler
   gold: "#fcd34d",     // gelb - Highlight des aktuellen Schritts
 };
@@ -41,16 +48,18 @@ function useReveal() {
   return [ref, shown];
 }
 
-function Section({ kicker, title, children }) {
+function Section({ id, kicker, title, children }) {
   const [ref, shown] = useReveal();
   return (
     <section
+      id={id}
       ref={ref}
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? "translateY(0)" : "translateY(24px)",
         transition: "opacity .6s ease, transform .6s ease",
         marginBottom: 64,
+        scrollMarginTop: 70, // Offset fuer die sticky Galerie-Kopfzeile
       }}
     >
       {kicker && (
@@ -132,7 +141,7 @@ const btnGhost = {
 //  ZUSAETZLICHE PFLICHT-BAUSTEINE
 // ===================================================================
 
-// Frac: echter Bruch (Zaehler ueber Nenner mit Trennstrich).
+// Frac: echter Bruch (Zähler über Nenner mit Trennstrich).
 function Frac({ num, den }) {
   return (
     <span style={{
@@ -146,7 +155,7 @@ function Frac({ num, den }) {
   );
 }
 
-// LoesungsStepper - das Herzstueck: animierter Schritt-fuer-Schritt-Loeser.
+// LösungsStepper - das Herzstück: animierter Schritt-für-Schritt-Löser.
 function LösungsStepper({ aufgabe, quelle, schritte }) {
   const [i, setI] = useState(1);          // Anzahl der eingeblendeten Schritte
   const [playing, setPlaying] = useState(false);
@@ -223,7 +232,7 @@ function LösungsStepper({ aufgabe, quelle, schritte }) {
 
       {/* Steuerung */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 18, alignItems: "center" }}>
-        <button style={btnGhost} onClick={() => setI((v) => Math.max(1, v - 1))} aria-label="Schritt zurueck">|◀</button>
+        <button style={btnGhost} onClick={() => setI((v) => Math.max(1, v - 1))} aria-label="Schritt zurück">|◀</button>
         <button style={btn} onClick={() => { if (i >= total) { setI(1); setPlaying(true); } else setPlaying((p) => !p); }}>
           {playing ? "⏸ Pause" : (i >= total ? "↺ Nochmal" : "▶ Auto-Play")}
         </button>
@@ -238,7 +247,7 @@ function LösungsStepper({ aufgabe, quelle, schritte }) {
   );
 }
 
-// kleine Hilfs-Card fuer "Typische Falle"
+// kleine Hilfs-Card für "Typische Falle"
 function FalleCard({ children }) {
   return (
     <Card style={{ marginTop: 18, background: `${C.warn}0e`, borderColor: `${C.warn}44` }}>
@@ -279,12 +288,12 @@ function VisUnstetigkeit() {
     {
       name: "Hebbar (behebbar)",
       color: C.good,
-      desc: "Linker und rechter Grenzwert existieren und sind gleich - nur der Funktionswert an der Stelle fehlt (Loch). Man koennte die Luecke 'stopfen'.",
+      desc: "Linker und rechter Grenzwert existieren und sind gleich - nur der Funktionswert an der Stelle fehlt (Loch). Man könnte die Lücke 'stopfen'.",
     },
     {
       name: "Sprungstelle",
       color: C.gold,
-      desc: "Linker und rechter Grenzwert existieren, sind aber verschieden. Der Graph 'springt' - genau der Fall der NK-Aufgabe (x² fuer x<0, x+1 sonst).",
+      desc: "Linker und rechter Grenzwert existieren, sind aber verschieden. Der Graph 'springt' - genau der Fall der NK-Aufgabe (x² für x<0, x+1 sonst).",
     },
     {
       name: "Polstelle",
@@ -320,7 +329,7 @@ function VisUnstetigkeit() {
       );
     }
     if (type === 1) {
-      // Sprung: linker Ast endet unten, rechter beginnt hoeher
+      // Sprung: linker Ast endet unten, rechter beginnt höher
       return (
         <>
           <path d={`M20 ${150} Q ${100} ${150} ${x0} ${130}`} stroke={C.gold} strokeWidth="3" fill="none" />
@@ -415,7 +424,7 @@ function VisReihen() {
       color: C.warn,
       term: (n) => 1 / n,
       grenze: null,
-      verdict: "divergiert (waechst unbegrenzt, nur sehr langsam)",
+      verdict: "divergiert (wächst unbegrenzt, nur sehr langsam)",
       konv: false,
     },
   };
@@ -489,8 +498,8 @@ function VisReihen() {
         </div>
       </div>
       <div style={{ fontSize: 13, color: C.dim, marginTop: 10, lineHeight: 1.6 }}>
-        Beobachte: Bei der geometrischen Reihe naehern sich die Balken einer festen Hoehe (dem Grenzwert) -
-        bei der harmonischen Reihe waechst die Summe immer weiter, nur gebremst. Genau das ist der Unterschied
+        Beobachte: Bei der geometrischen Reihe nähern sich die Balken einer festen Höhe (dem Grenzwert) -
+        bei der harmonischen Reihe wächst die Summe immer weiter, nur gebremst. Genau das ist der Unterschied
         zwischen <b style={{ color: C.good }}>Konvergenz</b> und <b style={{ color: C.warn }}>Divergenz</b>.
       </div>
     </Card>
@@ -498,11 +507,169 @@ function VisReihen() {
 }
 
 // ===================================================================
+//  SektionsNavigation - anklickbares Inhaltsverzeichnis mit Scroll-Spy
+// ===================================================================
+const NAV = [
+  { id: "ueberblick", label: "Überblick" },
+  { id: "t1", label: "1 · Unstetigkeit" },
+  { id: "t2", label: "2 · Folgen-Grenzwerte" },
+  { id: "t3", label: "3 · Reihen" },
+  { id: "t4", label: "4 · Verkettung" },
+  { id: "t5", label: "5 · Grenzwert-Beweis" },
+  { id: "t6", label: "6 · Ableitungen" },
+  { id: "t7", label: "7 · L'Hospital" },
+  { id: "t8", label: "8 · Taylorreihe" },
+  { id: "t9", label: "9 · Integrale" },
+  { id: "t10", label: "10 · Uneigentl. Integral" },
+  { id: "t11", label: "11 · Partialbruchzerlegung" },
+  { id: "t12", label: "12 · Bonus (INF24)" },
+  { id: "strategie", label: "Prüfungsstrategie" },
+  { id: "zusammenfassung", label: "Zusammenfassung" },
+  { id: "glossar", label: "Glossar" },
+];
+
+function SectionNav() {
+  // Breite Viewports: Panel standardmaessig offen. Schmale: als Button.
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1180px)").matches
+  );
+  const [open, setOpen] = useState(wide);
+  const [active, setActive] = useState(NAV[0].id);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1180px)");
+    const onChange = (e) => { setWide(e.matches); setOpen(e.matches); };
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  // Scroll-Spy: welche Sektion ist gerade oben im Bild?
+  useEffect(() => {
+    const els = NAV.map((n) => document.getElementById(n.id)).filter(Boolean);
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const vis = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (vis[0]) setActive(vis[0].target.id);
+      },
+      { rootMargin: "-70px 0px -65% 0px", threshold: 0 }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  const goTo = (id) => {
+    scrollToId(id);
+    setActive(id);
+    if (!wide) setOpen(false); // auf schmalen Screens nach Auswahl schliessen
+  };
+
+  // Eingeklappt: schlanker vertikaler Tab am rechten Rand.
+  // Per Portal direkt an <body> gehaengt - so ist die fixe Positionierung
+  // immer relativ zum Viewport (kein transformierter Vorfahre als Containing-Block).
+  if (!open) {
+    return createPortal(
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Sektionen anzeigen"
+        style={{
+          position: "fixed", right: 0, top: "50%", transform: "translateY(-50%)",
+          zIndex: 9000, display: "flex", alignItems: "center", gap: 8,
+          background: C.panel2, color: C.text, border: `1px solid ${C.line}`,
+          borderRight: "none", borderRadius: "12px 0 0 12px", padding: "12px 10px",
+          cursor: "pointer", writingMode: "vertical-rl", fontWeight: 700, fontSize: 13,
+          letterSpacing: 1, boxShadow: "0 8px 30px rgba(0,0,0,.35)",
+        }}
+      >
+        <span aria-hidden style={{ writingMode: "horizontal-tb", fontSize: 15 }}>☰</span>
+        Sektionen
+      </button>,
+      document.body
+    );
+  }
+
+  return createPortal(
+    <nav
+      aria-label="Sektionen"
+      style={{
+        position: "fixed", right: 14, top: "50%", transform: "translateY(-50%)",
+        zIndex: 9000, width: 232, maxHeight: "80vh", display: "flex", flexDirection: "column",
+        background: `${C.panel}f2`, border: `1px solid ${C.line}`, borderRadius: 14,
+        boxShadow: "0 16px 50px rgba(0,0,0,.45)", backdropFilter: "blur(8px)",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 12px", borderBottom: `1px solid ${C.line}`, flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: C.accent }}>
+          Sektionen
+        </span>
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="Sektionen schließen"
+          style={{ background: "transparent", border: "none", color: C.dim, cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2 }}
+        >
+          ✕
+        </button>
+      </div>
+      <div style={{ overflowY: "auto", padding: 6 }}>
+        {NAV.map((n) => {
+          const on = active === n.id;
+          return (
+            <button
+              key={n.id}
+              onClick={() => goTo(n.id)}
+              aria-current={on ? "true" : undefined}
+              style={{
+                display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left",
+                background: on ? `${C.gold}1c` : "transparent",
+                border: "none", borderRadius: 9, cursor: "pointer",
+                color: on ? C.gold : C.dim, fontWeight: on ? 700 : 500,
+                fontSize: 13, padding: "8px 10px", lineHeight: 1.3,
+                transition: "background .15s ease, color .15s ease",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = C.panel2; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                background: on ? C.gold : C.line,
+                boxShadow: on ? `0 0 0 3px ${C.gold}33` : "none",
+                transition: "background .15s ease, box-shadow .15s ease",
+              }} />
+              {n.label}
+            </button>
+          );
+        })}
+      </div>
+    </nav>,
+    document.body
+  );
+}
+
+// ===================================================================
 //  HAUPT-KOMPONENTE
 // ===================================================================
 export default function AnalysisKlausurtrainer() {
+  const rootRef = useRef(null);
+  // Die SektionsNav haengt sich per Portal an <body>. In den (verkleinerten,
+  // pointer-events:none) Galerie-Vorschaukacheln wuerde sie sonst sichtbar
+  // an den echten Viewport gelangen - daher dort unterdruecken.
+  const [isPreview, setIsPreview] = useState(true);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const preview = getComputedStyle(el).pointerEvents === "none";
+    setIsPreview(preview);
+  }, []);
+
   return (
-    <div style={{
+    <div ref={rootRef} style={{
       background: `radial-gradient(1200px 600px at 75% -10%, ${C.accent}1c, transparent), radial-gradient(900px 500px at 8% 8%, ${C.accent2}12, transparent), ${C.bg}`,
       color: C.text, minHeight: "100vh", fontFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
       padding: "0 0 80px",
@@ -512,6 +679,8 @@ export default function AnalysisKlausurtrainer() {
         @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
         input[type=range]{ height: 6px; border-radius: 4px; }
       `}</style>
+
+      {!isPreview && <SectionNav />}
 
       {/* HERO */}
       <header style={{ maxWidth: 880, margin: "0 auto", padding: "72px 24px 44px", textAlign: "center" }}>
@@ -523,15 +692,15 @@ export default function AnalysisKlausurtrainer() {
         </h1>
         <p style={{ fontSize: 18, color: C.dim, maxWidth: 640, margin: "0 auto", lineHeight: 1.65 }}>
           Die INF-Analysis-Klausuren bestehen aus rund <b style={{ color: C.text }}>11 wiederkehrenden Aufgabentypen</b>.
-          Hier ist jeder davon an einer <b style={{ color: C.text }}>echten Klausuraufgabe</b> Schritt fuer Schritt geloest -
-          mit Begruendung zu jedem Schritt. Wer das hier kann, loest jede der drei Klausuren.
+          Hier ist jeder davon an einer <b style={{ color: C.text }}>echten Klausuraufgabe</b> Schritt für Schritt gelöst -
+          mit Begründung zu jedem Schritt. Wer das hier kann, löst jede der drei Klausuren.
         </p>
       </header>
 
       <main style={{ maxWidth: 880, margin: "0 auto", padding: "0 24px" }}>
 
         {/* 0 - Landkarte */}
-        <Section kicker="Orientierung" title="Die Klausur auf einen Blick">
+        <Section id="ueberblick" kicker="Orientierung" title="Die Klausur auf einen Blick">
           <p style={{ marginTop: 0 }}>
             <b style={{ color: C.text }}>75 Minuten</b> Bearbeitungszeit, eine feste Aufgaben-Reihenfolge. Diese ~11 Typen
             wiederholen sich in jeder Klausur - nur mit anderen Zahlen. Verschaff dir zuerst den Ueberblick:
@@ -552,33 +721,40 @@ export default function AnalysisKlausurtrainer() {
                 ["11", "Partialbruchzerlegung", C.accent],
                 ["12", "Bonus (INF24)", C.gold],
               ].map(([nr, name, col]) => (
-                <div key={nr} style={{
-                  background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px",
-                  display: "flex", alignItems: "center", gap: 10,
-                }}>
+                <button key={nr} onClick={() => scrollToId("t" + nr)}
+                  title={`Zu "${name}" springen`}
+                  style={{
+                    background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px",
+                    display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+                    cursor: "pointer", fontFamily: "inherit",
+                    transition: "border-color .15s ease, background .15s ease, transform .15s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = col; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.transform = "translateY(0)"; }}
+                >
                   <span style={{
                     minWidth: 24, height: 24, borderRadius: 7, background: `${col}22`, color: col,
-                    display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0,
                   }}>{nr}</span>
                   <span style={{ fontSize: 13.5, color: C.text }}>{name}</span>
-                </div>
+                </button>
               ))}
             </div>
           </Card>
           <InfoBox title="So liest du diesen Trainer">
             Jede Section folgt demselben Bogen: <b style={{ color: C.text }}>Methode</b> (welches Verfahren, woran man es erkennt) -&gt;
-            <b style={{ color: C.text }}> Loesungs-Stepper</b> (echte Aufgabe Schritt fuer Schritt, mit ▶ Auto-Play) -&gt;
+            <b style={{ color: C.text }}> Lösungs-Stepper</b> (echte Aufgabe Schritt für Schritt, mit ▶ Auto-Play) -&gt;
             <b style={{ color: C.text }}> typische Falle</b> -&gt; <b style={{ color: C.text }}>Varianten</b> aus den anderen Klausuren.
-            Im Stepper ist der <b style={{ color: C.gold }}>aktuelle Schritt gelb</b>, das <b style={{ color: C.good }}>Endergebnis gruen</b>.
+            Im Stepper ist der <b style={{ color: C.gold }}>aktuelle Schritt gelb</b>, das <b style={{ color: C.good }}>Endergebnis grün</b>.
           </InfoBox>
         </Section>
 
         {/* ============ 1 - UNSTETIGKEIT ============ */}
-        <Section kicker="Aufgabentyp 1" title="Unstetigkeit - Arten erkennen und benennen">
+        <Section id="t1" kicker="Aufgabentyp 1" title="Unstetigkeit - Arten erkennen und benennen">
           <p style={{ marginTop: 0 }}>
-            Eine Funktion ist an einer Stelle x{"₀"} <b style={{ color: C.text }}>stetig</b> (durchgaengig, ohne Sprung),
+            Eine Funktion ist an einer Stelle x{"₀"} <b style={{ color: C.text }}>stetig</b> (durchgängig, ohne Sprung),
             wenn linker Grenzwert = rechter Grenzwert = Funktionswert. Ist das verletzt, liegt eine
-            <b style={{ color: C.warn }}> Unstetigkeit</b> vor. Es gibt vier Arten - die mt du erkennen koennen:
+            <b style={{ color: C.warn }}> Unstetigkeit</b> vor. Es gibt vier Arten - die du erkennen und benennen können musst:
           </p>
           <div style={{ marginBottom: 20 }}><VisUnstetigkeit /></div>
 
@@ -586,12 +762,12 @@ export default function AnalysisKlausurtrainer() {
             quelle="HK INF23 - Unstetigkeit a)"
             aufgabe={<>Untersuche f(x) = sin(<Frac num="1" den="x" />) an der Stelle x{"₀"} = 0 auf Stetigkeit.</>}
             schritte={[
-              { formel: <>Was passiert mit dem Argument <Frac num="1" den="x" /> fuer x &rarr; 0 ?</>,
-                warum: "Naehert sich x der 0, so waechst 1/x unbegrenzt (gegen +unendlich von rechts, -unendlich von links)." },
-              { formel: <>sin(<Frac num="1" den="x" />) durchlaeuft dabei unendlich oft alle Werte zwischen -1 und +1.</>,
-                warum: "Der Sinus ist periodisch. Je naeher x an 0, desto schneller schwingt das Argument durch ganze Perioden." },
+              { formel: <>Was passiert mit dem Argument <Frac num="1" den="x" /> für x &rarr; 0 ?</>,
+                warum: "Nähert sich x der 0, so wächst 1/x unbegrenzt (gegen +unendlich von rechts, -unendlich von links)." },
+              { formel: <>sin(<Frac num="1" den="x" />) durchläuft dabei unendlich oft alle Werte zwischen -1 und +1.</>,
+                warum: "Der Sinus ist periodisch. Je näher x an 0, desto schneller schwingt das Argument durch ganze Perioden." },
               { formel: <>&rArr; lim<sub>x&rarr;0</sub> sin(<Frac num="1" den="x" />) existiert NICHT.</>,
-                warum: "Die Funktion naehert sich keinem festen Wert - sie oszilliert ohne Ruhe. Kein Grenzwert moeglich." },
+                warum: "Die Funktion nähert sich keinem festen Wert - sie oszilliert ohne Ruhe. Kein Grenzwert möglich." },
               { formel: <><b>Ergebnis: Oszillationsunstetigkeit</b> bei x{"₀"} = 0.</>,
                 warum: "Da kein Grenzwert existiert, ist f dort unstetig - und zwar vom Typ Oszillation (nicht hebbar, kein Sprung, keine Polstelle)." },
             ]}
@@ -599,40 +775,40 @@ export default function AnalysisKlausurtrainer() {
           <InfoBox title="Teil b) - 'Nenne eine weitere Art'">
             Fast jede Unstetigkeits-Aufgabe hat einen Teil b): nenne eine andere Unstetigkeitsart mit Beispiel.
             Sichere Antworten: <b style={{ color: C.text }}>hebbar</b> (z. B. <Frac num="sin x" den="x" /> bei 0, Grenzwert 1 existiert),
-            <b style={{ color: C.text }}> Sprung</b> (stueckweise Funktion), <b style={{ color: C.text }}>Polstelle</b> (<Frac num="1" den="x" /> bei 0).
+            <b style={{ color: C.text }}> Sprung</b> (stückweise Funktion), <b style={{ color: C.text }}>Polstelle</b> (<Frac num="1" den="x" /> bei 0).
           </InfoBox>
           <FalleCard>
-            Oszillation mit Polstelle verwechseln. Bei der <b>Polstelle</b> laeuft die Funktion gegen &plusmn;&infin; (ein klarer
-            "Trend"); bei der <b>Oszillation</b> gibt es gar keinen Trend - sie pendelt beschraenkt, aber unendlich oft.
+            Oszillation mit Polstelle verwechseln. Bei der <b>Polstelle</b> läuft die Funktion gegen &plusmn;&infin; (ein klarer
+            "Trend"); bei der <b>Oszillation</b> gibt es gar keinen Trend - sie pendelt beschränkt, aber unendlich oft.
             sin(1/x) bleibt zwischen -1 und 1, geht also NICHT gegen unendlich.
           </FalleCard>
           <Varianten items={[
-            { q: "NK INF23:", t: "stueckweise x² (x<0) / x+1 → Sprung (links 0, rechts 1)" },
+            { q: "NK INF23:", t: "stückweise x² (x<0) / x+1 → Sprung (links 0, rechts 1)" },
             { q: "INF24:", t: "weitere Art benennen + Beispiel" },
           ]} />
         </Section>
 
         {/* ============ 2 - FOLGEN-GRENZWERTE ============ */}
-        <Section kicker="Aufgabentyp 2" title="Folgen-Grenzwerte (ohne L'Hospital)">
+        <Section id="t2" kicker="Aufgabentyp 2" title="Folgen-Grenzwerte (ohne L'Hospital)">
           <Card style={{ marginBottom: 18 }}>
-            <MethodRow color={C.accent} name="Dominanten Term ausklammern / kuerzen"
-              formula="hoechste Potenz von n kuerzen"
-              note="Bei Bruechen von Polynomen in n: durch die hoechste vorkommende n-Potenz teilen. Alle Terme der Form (Konstante / n^k) gehen dann gegen 0. Uebrig bleibt das Verhaeltnis der Leitkoeffizienten." />
+            <MethodRow color={C.accent} name="Dominanten Term ausklammern / kürzen"
+              formula="höchste Potenz von n kürzen"
+              note="Bei Brüchen von Polynomen in n: durch die höchste vorkommende n-Potenz teilen. Alle Terme der Form (Konstante / n^k) gehen dann gegen 0. Uebrig bleibt das Verhältnis der Leitkoeffizienten." />
           </Card>
           <LösungsStepper
             quelle="HK INF23 - Aufg. 2a)"
             aufgabe={<>Bestimme den Grenzwert von a<sub>n</sub> = <Frac num={<>(n+1)&sup2; &minus; n&sup2;</>} den="7n" />.</>}
             schritte={[
-              { formel: <>Zaehler ausmultiplizieren: (n+1)&sup2; = n&sup2; + 2n + 1</>,
-                warum: "Erste binomische Formel. So lassen sich die n²-Terme im Zaehler gegeneinander kuerzen." },
+              { formel: <>Zähler ausmultiplizieren: (n+1)&sup2; = n&sup2; + 2n + 1</>,
+                warum: "Erste binomische Formel. So lassen sich die n²-Terme im Zähler gegeneinander kürzen." },
               { formel: <>n&sup2; + 2n + 1 &minus; n&sup2; = 2n + 1</>,
-                warum: "Die n² heben sich auf - der Zaehler vereinfacht sich zu einem linearen Ausdruck." },
+                warum: "Die n² heben sich auf - der Zähler vereinfacht sich zu einem linearen Ausdruck." },
               { formel: <>a<sub>n</sub> = <Frac num="2n + 1" den="7n" /> = <Frac num="2" den="7" /> + <Frac num="1" den="7n" /></>,
                 warum: "Bruch term-weise aufteilen: 2n/(7n) = 2/7, und 1/(7n) bleibt." },
               { formel: <>n &rarr; &infin;: <Frac num="1" den="7n" /> &rarr; 0</>,
                 warum: "Eine Konstante geteilt durch ein wachsendes n strebt gegen 0 - das ist der entscheidende Standardgrenzwert." },
               { formel: <><b>lim<sub>n&rarr;&infin;</sub> a<sub>n</sub> = <Frac num="2" den="7" /></b></>,
-                warum: "Es bleibt nur das Verhaeltnis der Leitkoeffizienten 2/7 uebrig." },
+                warum: "Es bleibt nur das Verhältnis der Leitkoeffizienten 2/7 übrig." },
             ]}
           />
           <div style={{ marginTop: 18 }}>
@@ -640,19 +816,19 @@ export default function AnalysisKlausurtrainer() {
               quelle="HK INF23 - Aufg. 2b)"
               aufgabe={<>Bestimme den Grenzwert von a<sub>n</sub> = <Frac num={<>&minus;2n + 1</>} den="3 + 4n" />.</>}
               schritte={[
-                { formel: <>Hoechste Potenz ist n. Zaehler und Nenner durch n teilen.</>,
-                  warum: "Standardtrick bei Polynom-Bruechen: durch die groesste n-Potenz kuerzen." },
+                { formel: <>Höchste Potenz ist n. Zähler und Nenner durch n teilen.</>,
+                  warum: "Standardtrick bei Polynom-Brüchen: durch die größte n-Potenz kürzen." },
                 { formel: <>a<sub>n</sub> = <Frac num={<>&minus;2 + <Frac num="1" den="n" /></>} den={<><Frac num="3" den="n" /> + 4</>} /></>,
                   warum: "Jeder Term einzeln durch n geteilt: -2n/n = -2, 1/n bleibt, 3/n und 4n/n = 4." },
-                { formel: <>Fuer n &rarr; &infin;: <Frac num="1" den="n" /> &rarr; 0 und <Frac num="3" den="n" /> &rarr; 0</>,
+                { formel: <>Für n &rarr; &infin;: <Frac num="1" den="n" /> &rarr; 0 und <Frac num="3" den="n" /> &rarr; 0</>,
                   warum: "Alle Konstanten-durch-n-Terme verschwinden im Grenzwert." },
                 { formel: <><b>&rarr; <Frac num={<>&minus;2</>} den="4" /> = &minus;<Frac num="1" den="2" /></b></>,
-                  warum: "Es bleibt das Verhaeltnis der Leitkoeffizienten -2/4 = -1/2." },
+                  warum: "Es bleibt das Verhältnis der Leitkoeffizienten -2/4 = -1/2." },
               ]}
             />
           </div>
           <FalleCard>
-            Nicht durch die falsche Potenz teilen. Es zaehlt die <b>hoechste</b> vorkommende n-Potenz in der gesamten
+            Nicht durch die falsche Potenz teilen. Es zählt die <b>höchste</b> vorkommende n-Potenz in der gesamten
             Bruchstruktur. Und: 1/n &rarr; 0, aber n/n = 1 (nicht 0!) - die Leitkoeffizienten bleiben stehen.
           </FalleCard>
           <Varianten items={[
@@ -662,11 +838,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 3 - REIHEN ============ */}
-        <Section kicker="Aufgabentyp 3" title="Reihen-Konvergenz - das richtige Kriterium waehlen">
+        <Section id="t3" kicker="Aufgabentyp 3" title="Reihen-Konvergenz - das richtige Kriterium wählen">
           <Card style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <MethodRow color={C.accent2} name="Leibniz-Kriterium" formula="alternierend + monoton fallende Nullfolge"
-                note="Fuer Reihen mit Vorzeichenwechsel (-1)^n. Wenn die Betraege monoton gegen 0 fallen, konvergiert die Reihe." />
+                note="Für Reihen mit Vorzeichenwechsel (-1)^n. Wenn die Beträge monoton gegen 0 fallen, konvergiert die Reihe." />
               <MethodRow color={C.good} name="Geometrische Reihe" formula="Σ q^n  konvergiert  ⇔  |q| < 1"
                 note="Bei |q|<1 ist die Summe (ab n=0) gleich 1/(1-q). Bei |q|>=1 divergiert sie." />
               <MethodRow color={C.warn} name="Harmonische Reihe" formula="Σ 1/n  divergiert"
@@ -682,14 +858,14 @@ export default function AnalysisKlausurtrainer() {
             aufgabe={<>Konvergiert <>&#8721;</> <Frac num={<>(&minus;1)<sup>n</sup></>} den="2n &minus; 1" /> ?</>}
             schritte={[
               { formel: <>Vorzeichen (&minus;1)<sup>n</sup> wechselt &rArr; alternierende Reihe.</>,
-                warum: "Bei Vorzeichenwechsel ist das Leibniz-Kriterium der natuerliche Kandidat." },
+                warum: "Bei Vorzeichenwechsel ist das Leibniz-Kriterium der natürliche Kandidat." },
               { formel: <>Betrag der Glieder: b<sub>n</sub> = <Frac num="1" den="2n &minus; 1" /></>,
-                warum: "Leibniz prueft die Betraege ohne Vorzeichen - sie muessen zwei Bedingungen erfuellen." },
-              { formel: <>b<sub>n</sub> ist monoton fallend (Nenner 2n&minus;1 waechst).</>,
-                warum: "Groesserer Nenner -> kleinerer Bruch. Bedingung 1 (monoton fallend) erfuellt." },
-              { formel: <>b<sub>n</sub> &rarr; 0 fuer n &rarr; &infin;.</>,
-                warum: "1/(2n-1) -> 0. Bedingung 2 (Nullfolge) erfuellt." },
-              { formel: <><b>Beide Leibniz-Bedingungen erfuellt &rArr; die Reihe konvergiert.</b></>,
+                warum: "Leibniz prüft die Beträge ohne Vorzeichen - sie müssen zwei Bedingungen erfüllen." },
+              { formel: <>b<sub>n</sub> ist monoton fallend (Nenner 2n&minus;1 wächst).</>,
+                warum: "Größerer Nenner -> kleinerer Bruch. Bedingung 1 (monoton fallend) erfüllt." },
+              { formel: <>b<sub>n</sub> &rarr; 0 für n &rarr; &infin;.</>,
+                warum: "1/(2n-1) -> 0. Bedingung 2 (Nullfolge) erfüllt." },
+              { formel: <><b>Beide Leibniz-Bedingungen erfüllt &rArr; die Reihe konvergiert.</b></>,
                 warum: "Alternierend + monoton fallende Nullfolge ist genau das Leibniz-Kriterium." },
             ]}
           />
@@ -700,9 +876,9 @@ export default function AnalysisKlausurtrainer() {
                 aufgabe={<><>&#8721;</> <Frac num="9" den="n" /> - konvergent?</>}
                 schritte={[
                   { formel: <><>&#8721;</> <Frac num="9" den="n" /> = 9 &middot; <>&#8721;</> <Frac num="1" den="n" /></>,
-                    warum: "Konstanten Faktor 9 vorziehen - aendert das Konvergenzverhalten nicht." },
+                    warum: "Konstanten Faktor 9 vorziehen - ändert das Konvergenzverhalten nicht." },
                   { formel: <><>&#8721;</> <Frac num="1" den="n" /> ist die harmonische Reihe.</>,
-                    warum: "Das beruehmteste Beispiel einer divergenten Reihe trotz Nullfolge." },
+                    warum: "Das berühmteste Beispiel einer divergenten Reihe trotz Nullfolge." },
                   { formel: <><b>&rArr; divergiert</b> (auch mal 9).</>,
                     warum: "Ein konstanter Faktor macht aus einer divergenten Reihe keine konvergente." },
                 ]}
@@ -716,7 +892,7 @@ export default function AnalysisKlausurtrainer() {
                   { formel: <>Form q<sup>n</sup> mit q = 0,4 &rArr; geometrische Reihe.</>,
                     warum: "Konstante hoch n erkennt man als geometrische Reihe." },
                   { formel: <>|q| = 0,4 &lt; 1</>,
-                    warum: "Das Konvergenz-Kriterium der geometrischen Reihe ist erfuellt." },
+                    warum: "Das Konvergenz-Kriterium der geometrischen Reihe ist erfüllt." },
                   { formel: <><b>&rArr; konvergiert</b>, Summe (ab n=1) = <Frac num="0,4" den="1 &minus; 0,4" /> = <Frac num="2" den="3" /></>,
                     warum: "Bei |q|<1 gibt es sogar einen geschlossenen Summenwert." },
                 ]}
@@ -735,11 +911,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 4 - VERKETTUNG ============ */}
-        <Section kicker="Aufgabentyp 4" title="Funktionsverkettung - g∘f, f∘g, Definitionsbereich, Inverse">
+        <Section id="t4" kicker="Aufgabentyp 4" title="Funktionsverkettung - g∘f, f∘g, Definitionsbereich, Inverse">
           <InfoBox title="Was bedeutet g∘f ?">
-            (g&thinsp;&#8728;&thinsp;f)(x) = g(f(x)): erst f auf x anwenden, dann g auf das Ergebnis - "von innen nach aussen".
+            (g&thinsp;&#8728;&thinsp;f)(x) = g(f(x)): erst f auf x anwenden, dann g auf das Ergebnis - "von innen nach außen".
             Achtung auf die Reihenfolge: g&#8728;f ist meist NICHT dasselbe wie f&#8728;g. Der Definitionsbereich der
-            Verkettung umfasst nur die x, fuer die <i>beide</i> Schritte erlaubt sind.
+            Verkettung umfasst nur die x, für die <i>beide</i> Schritte erlaubt sind.
           </InfoBox>
           <LösungsStepper
             quelle="HK INF23 - Aufg. 4"
@@ -748,46 +924,46 @@ export default function AnalysisKlausurtrainer() {
               { formel: <>(g&#8728;f)(x) = g(f(x)) = (&radic;(1&minus;x))&sup2; = 1 &minus; x</>,
                 warum: "Quadrieren hebt die Wurzel auf. Aber: f muss zuerst definiert sein - dazu gleich." },
               { formel: <>D(f): 1&minus;x &ge; 0 &rArr; x &le; 1. Also D(g&#8728;f) = (&minus;&infin;, 1].</>,
-                warum: "Unter der Wurzel darf nichts Negatives stehen. Der Definitionsbereich von f vererbt sich auf g∘f, obwohl 1-x ueberall definiert waere." },
+                warum: "Unter der Wurzel darf nichts Negatives stehen. Der Definitionsbereich von f vererbt sich auf g∘f, obwohl 1-x überall definiert wäre." },
               { formel: <>(f&#8728;g)(x) = f(g(x)) = &radic;(1 &minus; x&sup2;)</>,
-                warum: "Andere Reihenfolge: erst quadrieren, dann in die Wurzel. Ergebnis ist voellig anders als g∘f." },
+                warum: "Andere Reihenfolge: erst quadrieren, dann in die Wurzel. Ergebnis ist völlig anders als g∘f." },
               { formel: <>D(f&#8728;g): 1&minus;x&sup2; &ge; 0 &rArr; &minus;1 &le; x &le; 1.</>,
                 warum: "Auch hier muss der Radikand >= 0 sein. Das ergibt das Intervall [-1, 1]." },
               { formel: <>Inverse von (g&#8728;f)(x)=1&minus;x: y = 1&minus;x &rArr; x = 1&minus;y.</>,
-                warum: "Nach x aufloesen und x, y tauschen liefert die Umkehrfunktion." },
+                warum: "Nach x auflösen und x, y tauschen liefert die Umkehrfunktion." },
               { formel: <><b>(g&#8728;f)<sup>&minus;1</sup>(x) = 1 &minus; x = (g&#8728;f)(x)</b> &#10003;</>,
                 warum: "Funktion und ihre Inverse sind identisch - 1-x ist selbstinvers (eine Involution). Genau das war zu zeigen." },
             ]}
           />
           <FalleCard>
-            Reihenfolge vertauschen: g&#8728;f bedeutet <b>g(f(x))</b>, also f zuerst. Und der haeufigste Punktverlust:
-            den <b>Definitionsbereich vergessen</b>. (g&#8728;f)(x) = 1&minus;x sieht ueberall definiert aus - gilt aber
-            nur fuer x &le; 1, weil f die Wurzel enthaelt.
+            Reihenfolge vertauschen: g&#8728;f bedeutet <b>g(f(x))</b>, also f zuerst. Und der häufigste Punktverlust:
+            den <b>Definitionsbereich vergessen</b>. (g&#8728;f)(x) = 1&minus;x sieht überall definiert aus - gilt aber
+            nur für x &le; 1, weil f die Wurzel enthält.
           </FalleCard>
           <Varianten items={[
             { q: "NK INF23:", t: "f=√x , g=1−x²" },
-            { q: "INF24:", t: "f=x² , g=1+x  (+ Monotonie pruefen)" },
+            { q: "INF24:", t: "f=x² , g=1+x  (+ Monotonie prüfen)" },
           ]} />
         </Section>
 
         {/* ============ 5 - GRENZWERT-BEWEIS ============ */}
-        <Section kicker="Aufgabentyp 5" title="Grenzwert-Beweis / Stetigkeit (Ableitungsdefinition)">
+        <Section id="t5" kicker="Aufgabentyp 5" title="Grenzwert-Beweis / Stetigkeit (Ableitungsdefinition)">
           <p style={{ marginTop: 0 }}>
-            Hier sollst du einen Grenzwert nicht nur ausrechnen, sondern <b style={{ color: C.text }}>begruenden</b> -
-            oft ueber die <b style={{ color: C.text }}>Definition der Ableitung</b> als Grenzwert des Differenzenquotienten.
+            Hier sollst du einen Grenzwert nicht nur ausrechnen, sondern <b style={{ color: C.text }}>begründen</b> -
+            oft über die <b style={{ color: C.text }}>Definition der Ableitung</b> als Grenzwert des Differenzenquotienten.
           </p>
           <LösungsStepper
             quelle="HK INF23 - Aufg. 5"
-            aufgabe={<>Zeige fuer a &gt; 0: &nbsp;lim<sub>h&rarr;0</sub> <Frac num={<>a<sup>h</sup> &minus; 1</>} den="h" /> = ln(a).</>}
+            aufgabe={<>Zeige für a &gt; 0: &nbsp;lim<sub>h&rarr;0</sub> <Frac num={<>a<sup>h</sup> &minus; 1</>} den="h" /> = ln(a).</>}
             schritte={[
               { formel: <>Betrachte die Funktion g(x) = a<sup>x</sup> an der Stelle x = 0.</>,
                 warum: "Der gesuchte Grenzwert hat genau die Bauform des Differenzenquotienten von a^x bei 0." },
               { formel: <>Ableitungsdefinition: g'(0) = lim<sub>h&rarr;0</sub> <Frac num={<>g(0+h) &minus; g(0)</>} den="h" /></>,
-                warum: "Die Ableitung ist definiert als Grenzwert des Differenzenquotienten - das ist die Bruecke zur Aufgabe." },
+                warum: "Die Ableitung ist definiert als Grenzwert des Differenzenquotienten - das ist die Brücke zur Aufgabe." },
               { formel: <>g(0) = a<sup>0</sup> = 1, also g'(0) = lim<sub>h&rarr;0</sub> <Frac num={<>a<sup>h</sup> &minus; 1</>} den="h" /></>,
                 warum: "Einsetzen zeigt: der gesuchte Grenzwert IST g'(0). Jetzt muss man nur g' kennen." },
               { formel: <>Ableitung der Exponentialfunktion: g'(x) = a<sup>x</sup> &middot; ln(a)</>,
-                warum: "Standard-Ableitung. (Herleitbar ueber a^x = e^{x ln a} und Kettenregel.)" },
+                warum: "Standard-Ableitung. (Herleitbar über a^x = e^{x ln a} und Kettenregel.)" },
               { formel: <><b>g'(0) = a<sup>0</sup> &middot; ln(a) = ln(a)</b> &#10003;</>,
                 warum: "Bei x=0 ist a^0=1, es bleibt ln(a). Damit ist der Grenzwert bewiesen." },
             ]}
@@ -802,11 +978,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 6 - ABLEITUNGEN ============ */}
-        <Section kicker="Aufgabentyp 6" title="Ableitungen - Ketten-, Produkt- & logarithmische Regel">
+        <Section id="t6" kicker="Aufgabentyp 6" title="Ableitungen - Ketten-, Produkt- & logarithmische Regel">
           <Card style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <MethodRow color={C.accent} name="Kettenregel" formula="(f(g(x)))' = f'(g(x)) · g'(x)"
-                note="'Aeussere mal innere Ableitung'. Bei verschachtelten Funktionen wie (...)^5 oder √(...)." />
+                note="'Äußere mal innere Ableitung'. Bei verschachtelten Funktionen wie (...)^5 oder √(...)." />
               <MethodRow color={C.accent2} name="Produktregel" formula="(u·v)' = u'v + uv'"
                 note="Bei Produkten wie x³·e^x: jeden Faktor einmal ableiten, addieren." />
               <MethodRow color={C.gold} name="Logarithmische Ableitung" formula="y=f(x)^{g(x)} → ln beidseitig"
@@ -817,14 +993,14 @@ export default function AnalysisKlausurtrainer() {
             quelle="HK INF23 - Aufg. 6a)"
             aufgabe={<>Leite ab: f(x) = (arcsin x + 4)<sup>5</sup>.</>}
             schritte={[
-              { formel: <>Aeussere Funktion: (&#9633;)<sup>5</sup>, innere: arcsin x + 4.</>,
+              { formel: <>Äußere Funktion: (&#9633;)<sup>5</sup>, innere: arcsin x + 4.</>,
                 warum: "Verschachtelung erkennen -> Kettenregel. Innen steht arcsin x + 4." },
-              { formel: <>Aeussere Ableitung: 5(arcsin x + 4)<sup>4</sup></>,
-                warum: "Potenzregel auf die aeussere Klammer, Inneres unveraendert lassen." },
+              { formel: <>Äußere Ableitung: 5(arcsin x + 4)<sup>4</sup></>,
+                warum: "Potenzregel auf die äußere Klammer, Inneres unverändert lassen." },
               { formel: <>Innere Ableitung: (arcsin x)' = <Frac num="1" den={<>&radic;(1&minus;x&sup2;)</>} /></>,
-                warum: "Standard-Ableitung des Arkussinus; die +4 faellt als Konstante weg." },
+                warum: "Standard-Ableitung des Arkussinus; die +4 fällt als Konstante weg." },
               { formel: <><b>f'(x) = 5(arcsin x + 4)<sup>4</sup> &middot; <Frac num="1" den={<>&radic;(1&minus;x&sup2;)</>} /></b></>,
-                warum: "Kettenregel: aeussere mal innere Ableitung - fertig." },
+                warum: "Kettenregel: äußere mal innere Ableitung - fertig." },
             ]}
           />
           <div style={{ marginTop: 18 }}>
@@ -833,9 +1009,9 @@ export default function AnalysisKlausurtrainer() {
               aufgabe={<>Leite ab: f(x) = x&sup3; &middot; e<sup>x</sup>.</>}
               schritte={[
                 { formel: <>Produkt aus u = x&sup3; und v = e<sup>x</sup>.</>,
-                  warum: "Zwei x-abhaengige Faktoren multipliziert -> Produktregel." },
+                  warum: "Zwei x-abhängige Faktoren multipliziert -> Produktregel." },
                 { formel: <>u' = 3x&sup2;,&nbsp;&nbsp; v' = e<sup>x</sup></>,
-                  warum: "Potenzregel fuer x³, und e^x bleibt beim Ableiten e^x." },
+                  warum: "Potenzregel für x³, und e^x bleibt beim Ableiten e^x." },
                 { formel: <>f'(x) = u'v + uv' = 3x&sup2; e<sup>x</sup> + x&sup3; e<sup>x</sup></>,
                   warum: "Produktregel einsetzen: erste abgeleitet mal zweite + erste mal zweite abgeleitet." },
                 { formel: <><b>f'(x) = x&sup2; e<sup>x</sup>(3 + x)</b></>,
@@ -851,7 +1027,7 @@ export default function AnalysisKlausurtrainer() {
                 { formel: <>Setze y = x<sup>x</sup> und nimm beidseitig ln: ln y = x &middot; ln x.</>,
                   warum: "Basis UND Exponent enthalten x - normale Regeln greifen nicht. ln macht aus dem Exponenten einen Faktor." },
                 { formel: <>Links implizit ableiten: <Frac num="y'" den="y" /> (innere Ableitung von ln y).</>,
-                  warum: "y haengt von x ab, daher Kettenregel: (ln y)' = y'/y." },
+                  warum: "y hängt von x ab, daher Kettenregel: (ln y)' = y'/y." },
                 { formel: <>Rechts Produktregel: (x &middot; ln x)' = 1&middot;ln x + x&middot;<Frac num="1" den="x" /> = ln x + 1</>,
                   warum: "Produktregel auf x mal ln x; x mal 1/x = 1." },
                 { formel: <><Frac num="y'" den="y" /> = ln x + 1 &rArr; y' = y(ln x + 1)</>,
@@ -864,7 +1040,7 @@ export default function AnalysisKlausurtrainer() {
           <FalleCard>
             x^x NICHT wie x^n (Potenzregel) oder wie a^x (Exponentialregel) behandeln - beides ist falsch, weil
             hier <b>Basis und Exponent zugleich x</b> sind. Nur die logarithmische Ableitung ist korrekt.
-            Und bei der Kettenregel die <b>innere Ableitung nicht vergessen</b> (haeufigster Fluechtigkeitsfehler).
+            Und bei der Kettenregel die <b>innere Ableitung nicht vergessen</b> (häufigster Flüchtigkeitsfehler).
           </FalleCard>
           <Varianten items={[
             { q: "HK INF23:", t: "√(sin x + 1) (Kettenregel)" },
@@ -874,11 +1050,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 7 - L'HOSPITAL ============ */}
-        <Section kicker="Aufgabentyp 7" title="L'Hospital-Grenzwerte - '0/0' und '0·∞'">
+        <Section id="t7" kicker="Aufgabentyp 7" title="L'Hospital-Grenzwerte - '0/0' und '0·∞'">
           <InfoBox title="Wann darf man L'Hospital anwenden?">
             Nur bei den <b style={{ color: C.text }}>unbestimmten Formen</b> <code style={{ color: C.gold }}>0/0</code> oder
             <code style={{ color: C.gold }}> &infin;/&infin;</code>. Dann gilt: lim <Frac num="f" den="g" /> = lim <Frac num="f'" den="g'" />
-            (Zaehler und Nenner <i>getrennt</i> ableiten, NICHT die Quotientenregel!). Andere Formen wie
+            (Zähler und Nenner <i>getrennt</i> ableiten, NICHT die Quotientenregel!). Andere Formen wie
             <code style={{ color: C.accent2 }}> 0&middot;&infin;</code> erst in einen Bruch umschreiben.
           </InfoBox>
           <LösungsStepper
@@ -886,9 +1062,9 @@ export default function AnalysisKlausurtrainer() {
             aufgabe={<>lim<sub>x&rarr;0</sub> <Frac num={<>e<sup>4x</sup> &minus; 1</>} den="2x" /></>}
             schritte={[
               { formel: <>Einsetzen x=0: <Frac num={<>e<sup>0</sup>&minus;1</>} den="0" /> = <Frac num="0" den="0" /></>,
-                warum: "Erst pruefen, ob ueberhaupt eine unbestimmte Form vorliegt. 0/0 -> L'Hospital erlaubt." },
-              { formel: <>Zaehler ableiten: (e<sup>4x</sup>&minus;1)' = 4e<sup>4x</sup></>,
-                warum: "Kettenregel: innere Ableitung von 4x ist 4. Die -1 faellt weg." },
+                warum: "Erst prüfen, ob überhaupt eine unbestimmte Form vorliegt. 0/0 -> L'Hospital erlaubt." },
+              { formel: <>Zähler ableiten: (e<sup>4x</sup>&minus;1)' = 4e<sup>4x</sup></>,
+                warum: "Kettenregel: innere Ableitung von 4x ist 4. Die -1 fällt weg." },
               { formel: <>Nenner ableiten: (2x)' = 2</>,
                 warum: "Einfache Potenzregel." },
               { formel: <>lim<sub>x&rarr;0</sub> <Frac num={<>4e<sup>4x</sup></>} den="2" /> = <Frac num={<>4&middot;1</>} den="2" /></>,
@@ -907,17 +1083,17 @@ export default function AnalysisKlausurtrainer() {
                 { formel: <>Umschreiben: x&sup2; ln(x&sup2;) = <Frac num={<>ln(x&sup2;)</>} den={<>1 / x&sup2;</>} /></>,
                   warum: "Den 0-Faktor in den Nenner schieben: aus 0·∞ wird ∞/∞." },
                 { formel: <>Substituiere t = x&sup2; &rarr; 0<sup>+</sup>: <Frac num="t ln t" den="1" /> bzw. t&middot;ln t.</>,
-                  warum: "Mit t = x² wird es der bekannte Grenzwert t·ln t fuer t -> 0+." },
+                  warum: "Mit t = x² wird es der bekannte Grenzwert t·ln t für t -> 0+." },
                 { formel: <>lim<sub>t&rarr;0<sup>+</sup></sub> t &middot; ln t = 0</>,
-                  warum: "Standardgrenzwert: t geht schneller gegen 0 als ln t gegen -unendlich. (Per L'Hospital auf ln t / (1/t) bestaetigt.)" },
+                  warum: "Standardgrenzwert: t geht schneller gegen 0 als ln t gegen -unendlich. (Per L'Hospital auf ln t / (1/t) bestätigt.)" },
                 { formel: <><b>&rArr; lim<sub>x&rarr;0</sub> x&sup2; ln(x&sup2;) = 0</b></>,
                   warum: "Das Polynom x² 'gewinnt' gegen den Logarithmus." },
               ]}
             />
           </div>
           <FalleCard>
-            Den Bruch mit der <b>Quotientenregel</b> ableiten - falsch! Bei L'Hospital werden Zaehler und Nenner
-            <b> getrennt</b> abgeleitet. Und: L'Hospital nur bei 0/0 oder &infin;/&infin; ansetzen - vorher die Form pruefen.
+            Den Bruch mit der <b>Quotientenregel</b> ableiten - falsch! Bei L'Hospital werden Zähler und Nenner
+            <b> getrennt</b> abgeleitet. Und: L'Hospital nur bei 0/0 oder &infin;/&infin; ansetzen - vorher die Form prüfen.
             0&middot;&infin; muss erst in einen Bruch umgeformt werden.
           </FalleCard>
           <Varianten items={[
@@ -928,11 +1104,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 8 - TAYLORREIHE ============ */}
-        <Section kicker="Aufgabentyp 8" title="Taylorreihe um a=0 (bis 4. Glied)">
+        <Section id="t8" kicker="Aufgabentyp 8" title="Taylorreihe um a=0 (bis 4. Glied)">
           <InfoBox title="Die Taylorformel">
             Um den Entwicklungspunkt a=0 (auch <b style={{ color: C.text }}>MacLaurin-Reihe</b>):
             f(x) &asymp; f(0) + f'(0)&middot;x + <Frac num={<>f''(0)</>} den="2!" />&middot;x&sup2; + <Frac num={<>f'''(0)</>} den="3!" />&middot;x&sup3; + ...
-            (n! = "n Fakultaet" = 1&middot;2&middot;...&middot;n, also 2!=2, 3!=6.) Man braucht die Ableitungen, jeweils bei 0 ausgewertet.
+            (n! = "n Fakultät" = 1&middot;2&middot;...&middot;n, also 2!=2, 3!=6.) Man braucht die Ableitungen, jeweils bei 0 ausgewertet.
           </InfoBox>
           <LösungsStepper
             quelle="HK INF23 - Aufg. 8"
@@ -949,11 +1125,11 @@ export default function AnalysisKlausurtrainer() {
               { formel: <>Einsetzen: 1 + <Frac num="1" den="2" />x + <Frac num={<>&minus;1/4</>} den="2!" />x&sup2; + <Frac num={<>3/8</>} den="3!" />x&sup3;</>,
                 warum: "Werte in die Taylorformel einsetzen; 2!=2, 3!=6." },
               { formel: <><b>&radic;(x+1) &asymp; 1 + <Frac num="x" den="2" /> &minus; <Frac num={<>x&sup2;</>} den="8" /> + <Frac num={<>x&sup3;</>} den="16" /></b></>,
-                warum: "(-1/4)/2 = -1/8 und (3/8)/6 = 1/16. Das ist die gesuchte Naeherung." },
+                warum: "(-1/4)/2 = -1/8 und (3/8)/6 = 1/16. Das ist die gesuchte Näherung." },
             ]}
           />
           <FalleCard>
-            Die <b>Fakultaeten im Nenner vergessen</b>: das x&sup2;-Glied hat f''(0)/<b>2!</b>, das x&sup3;-Glied f'''(0)/<b>3!</b>.
+            Die <b>Fakultäten im Nenner vergessen</b>: das x&sup2;-Glied hat f''(0)/<b>2!</b>, das x&sup3;-Glied f'''(0)/<b>3!</b>.
             Und Vorzeichenfehler bei den negativen Exponenten der Wurzel-Ableitungen sind hier die typische Fehlerquelle.
           </FalleCard>
           <Varianten items={[
@@ -963,11 +1139,11 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 9 - INTEGRALE ============ */}
-        <Section kicker="Aufgabentyp 9" title="Integrale - partielle Integration & Substitution">
+        <Section id="t9" kicker="Aufgabentyp 9" title="Integrale - partielle Integration & Substitution">
           <Card style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <MethodRow color={C.accent} name="Partielle Integration" formula="∫ u'v = uv − ∫ uv'"
-                note="Bei Produkten wie x·cos x oder x·ln x. Faustregel: das Teil, das beim Ableiten einfacher wird (z. B. x oder ln x), als v waehlen." />
+                note="Bei Produkten wie x·cos x oder x·ln x. Faustregel: das Teil, das beim Ableiten einfacher wird (z. B. x oder ln x), als v wählen." />
               <MethodRow color={C.accent2} name="Substitution" formula="∫ f(g(x))g'(x) dx = ∫ f(u) du"
                 note="Wenn im Integranden eine innere Funktion und (fast) ihre Ableitung steht. Setze u = innere Funktion." />
             </div>
@@ -976,8 +1152,8 @@ export default function AnalysisKlausurtrainer() {
             quelle="HK INF23 - Aufg. 9b)"
             aufgabe={<>Berechne &#8747; x &middot; cos x dx.</>}
             schritte={[
-              { formel: <>Waehle u = x (&rarr; u' = 1) und v' = cos x (&rarr; v = sin x).</>,
-                warum: "x wird beim Ableiten zu 1 (einfacher), cos x laesst sich leicht integrieren. Ideal fuer partielle Integration." },
+              { formel: <>Wähle u = x (&rarr; u' = 1) und v' = cos x (&rarr; v = sin x).</>,
+                warum: "x wird beim Ableiten zu 1 (einfacher), cos x lässt sich leicht integrieren. Ideal für partielle Integration." },
               { formel: <>&#8747; u v' dx = u v &minus; &#8747; u' v dx</>,
                 warum: "Formel der partiellen Integration anschreiben." },
               { formel: <>= x &middot; sin x &minus; &#8747; 1 &middot; sin x dx</>,
@@ -993,7 +1169,7 @@ export default function AnalysisKlausurtrainer() {
               quelle="HK INF23 - Aufg. 9c)"
               aufgabe={<>Berechne &#8747; x &middot; ln x dx.</>}
               schritte={[
-                { formel: <>Waehle u = ln x (&rarr; u' = <Frac num="1" den="x" />) und v' = x (&rarr; v = <Frac num={<>x&sup2;</>} den="2" />).</>,
+                { formel: <>Wähle u = ln x (&rarr; u' = <Frac num="1" den="x" />) und v' = x (&rarr; v = <Frac num={<>x&sup2;</>} den="2" />).</>,
                   warum: "ln x kann man nicht direkt integrieren, aber leicht ableiten - also u = ln x." },
                 { formel: <>= ln x &middot; <Frac num={<>x&sup2;</>} den="2" /> &minus; &#8747; <Frac num="1" den="x" /> &middot; <Frac num={<>x&sup2;</>} den="2" /> dx</>,
                   warum: "Partielle Integration einsetzen: u·v - ∫ u'·v." },
@@ -1005,8 +1181,8 @@ export default function AnalysisKlausurtrainer() {
             />
           </div>
           <FalleCard>
-            Bei der partiellen Integration <b>u und v' falsch waehlen</b>: dann wird das Restintegral schwerer statt
-            leichter. Merksatz fuer x&middot;ln x: <b>ln x = u</b> (denn ln laesst sich leicht ableiten, schwer integrieren).
+            Bei der partiellen Integration <b>u und v' falsch wählen</b>: dann wird das Restintegral schwerer statt
+            leichter. Merksatz für x&middot;ln x: <b>ln x = u</b> (denn ln lässt sich leicht ableiten, schwer integrieren).
             Und die <b>+C</b> bei unbestimmten Integralen nie vergessen.
           </FalleCard>
           <Varianten items={[
@@ -1016,10 +1192,10 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 10 - UNEIGENTLICHES INTEGRAL ============ */}
-        <Section kicker="Aufgabentyp 10" title="Uneigentliches Integral - Grenze als Limes behandeln">
+        <Section id="t10" kicker="Aufgabentyp 10" title="Uneigentliches Integral - Grenze als Limes behandeln">
           <p style={{ marginTop: 0 }}>
-            Ein Integral heisst <b style={{ color: C.text }}>uneigentlich</b>, wenn der Integrand an einer Grenze
-            unbeschraenkt wird (gegen &infin; geht) oder eine Grenze selbst &infin; ist. Trick: die kritische Grenze
+            Ein Integral heißt <b style={{ color: C.text }}>uneigentlich</b>, wenn der Integrand an einer Grenze
+            unbeschränkt wird (gegen &infin; geht) oder eine Grenze selbst &infin; ist. Trick: die kritische Grenze
             durch eine Variable ersetzen und am Ende den <b style={{ color: C.text }}>Grenzwert</b> bilden.
           </p>
           <LösungsStepper
@@ -1027,11 +1203,11 @@ export default function AnalysisKlausurtrainer() {
             aufgabe={<>Berechne &#8747;<sub>0</sub><sup>2,5</sup> <Frac num="1" den={<>&radic;(5&minus;2x)</>} /> dx.</>}
             schritte={[
               { formel: <>Bei x=2,5: 5&minus;2&middot;2,5 = 0 &rArr; Integrand &rarr; &infin;. Uneigentlich!</>,
-                warum: "Erst die kritische Stelle erkennen: der Nenner wird 0, der Integrand unbeschraenkt." },
+                warum: "Erst die kritische Stelle erkennen: der Nenner wird 0, der Integrand unbeschränkt." },
               { formel: <>Substitution u = 5&minus;2x, du = &minus;2 dx &rArr; dx = &minus;<Frac num="1" den="2" /> du.</>,
                 warum: "Die innere Funktion unter der Wurzel substituieren, um eine einfache Stammfunktion zu finden." },
               { formel: <>&#8747; <Frac num="1" den={<>&radic;u</>} />&middot;(&minus;<Frac num="1" den="2" />) du = &minus;<Frac num="1" den="2" />&middot;2&radic;u = &minus;&radic;u</>,
-                warum: "∫ u^{-1/2} du = 2√u; mal -1/2 ergibt -√u. Ruecksubstitution: -√(5-2x)." },
+                warum: "∫ u^{-1/2} du = 2√u; mal -1/2 ergibt -√u. Rücksubstitution: -√(5-2x)." },
               { formel: <>Als Limes: lim<sub>b&rarr;2,5<sup>&minus;</sup></sub> [&minus;&radic;(5&minus;2x)]<sub>0</sub><sup>b</sup></>,
                 warum: "Die problematische obere Grenze 2,5 durch b ersetzen und b -> 2,5 von links laufen lassen." },
               { formel: <>= lim<sub>b&rarr;2,5</sub> (&minus;&radic;(5&minus;2b) + &radic;5) = &minus;0 + &radic;5</>,
@@ -1041,7 +1217,7 @@ export default function AnalysisKlausurtrainer() {
             ]}
           />
           <FalleCard>
-            Die <b>Unbeschraenktheit uebersehen</b> und einfach 2,5 einsetzen - das gibt Division durch 0. Man MUSS die
+            Die <b>Unbeschränktheit übersehen</b> und einfach 2,5 einsetzen - das gibt Division durch 0. Man MUSS die
             kritische Grenze als Limes behandeln. Existiert der Grenzwert nicht (wird unendlich), <b>divergiert</b> das Integral.
           </FalleCard>
           <Varianten items={[
@@ -1050,10 +1226,10 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 11 - PARTIALBRUCHZERLEGUNG ============ */}
-        <Section kicker="Aufgabentyp 11" title="Partialbruchzerlegung - Nenner faktorisieren & integrieren">
+        <Section id="t11" kicker="Aufgabentyp 11" title="Partialbruchzerlegung - Nenner faktorisieren & integrieren">
           <InfoBox title="Idee der Partialbruchzerlegung">
             Einen komplizierten Bruch wie <Frac num={<>7x+13</>} den={<>x&sup2;+5x&minus;6</>} /> zerlegt man in eine Summe einfacher
-            Brueche <Frac num="A" den={<>x+6</>} /> + <Frac num="B" den={<>x&minus;1</>} />, die man einzeln integrieren kann (sie liefern ln-Terme).
+            Brüche <Frac num="A" den={<>x+6</>} /> + <Frac num="B" den={<>x&minus;1</>} />, die man einzeln integrieren kann (sie liefern ln-Terme).
             Voraussetzung: Nenner in Linearfaktoren zerlegen.
           </InfoBox>
           <LösungsStepper
@@ -1063,26 +1239,26 @@ export default function AnalysisKlausurtrainer() {
               { formel: <>Nenner faktorisieren: x&sup2;+5x&minus;6 = (x+6)(x&minus;1)</>,
                 warum: "Nullstellen x=-6 und x=1 (Satz von Vieta: Produkt -6, Summe -5... bzw. +5 mit Vorzeichen). Linearfaktoren sind die Basis der Zerlegung." },
               { formel: <>Ansatz: <Frac num={<>7x+13</>} den={<>(x+6)(x&minus;1)</>} /> = <Frac num="A" den={<>x+6</>} /> + <Frac num="B" den={<>x&minus;1</>} /></>,
-                warum: "Pro Linearfaktor ein Partialbruch mit unbekanntem Zaehler A bzw. B." },
+                warum: "Pro Linearfaktor ein Partialbruch mit unbekanntem Zähler A bzw. B." },
               { formel: <>Beide Seiten &middot;(x+6)(x&minus;1): 7x+13 = A(x&minus;1) + B(x+6)</>,
-                warum: "Nenner wegmultiplizieren - jetzt eine Gleichung fuer alle x, aus der wir A und B bestimmen." },
+                warum: "Nenner wegmultiplizieren - jetzt eine Gleichung für alle x, aus der wir A und B bestimmen." },
               { formel: <>x = 1: 20 = 7B &rArr; B = <Frac num="20" den="7" /></>,
-                warum: "Geschickte Werte einsetzen (Einsetzmethode): bei x=1 faellt der A-Term weg." },
+                warum: "Geschickte Werte einsetzen (Einsetzmethode): bei x=1 fällt der A-Term weg." },
               { formel: <>x = &minus;6: &minus;29 = &minus;7A &rArr; A = <Frac num="29" den="7" /></>,
-                warum: "Bei x=-6 faellt der B-Term weg; -42+13 = -29." },
+                warum: "Bei x=-6 fällt der B-Term weg; -42+13 = -29." },
               { formel: <>&#8747;(<Frac num="29/7" den={<>x+6</>} /> + <Frac num="20/7" den={<>x&minus;1</>} />) dx</>,
                 warum: "Jeder Summand ist jetzt ein Grundintegral der Form ∫ 1/(x-a) dx = ln|x-a|." },
               { formel: <><b>= <Frac num="29" den="7" /> ln|x+6| + <Frac num="20" den="7" /> ln|x&minus;1| + C</b></>,
                 warum: "∫ 1/(x+6) dx = ln|x+6| usw. Betragsstriche, weil das Argument negativ sein kann." },
             ]}
           />
-          <InfoBox title="Zusatzfrage: 'Wann darf ueber [a,b] integriert werden?'">
-            Nur wenn <b style={{ color: C.text }}>keine Nullstelle des Nenners</b> im Intervall [a,b] liegt. Hier waeren das
+          <InfoBox title="Zusatzfrage: 'Wann darf über [a,b] integriert werden?'">
+            Nur wenn <b style={{ color: C.text }}>keine Nullstelle des Nenners</b> im Intervall [a,b] liegt. Hier wären das
             x = &minus;6 und x = 1 - das Intervall darf diese Polstellen nicht enthalten, sonst ist das Integral uneigentlich.
           </InfoBox>
           <FalleCard>
             <b>Betragsstriche bei ln vergessen</b>: korrekt ist ln|x&minus;1|, nicht ln(x&minus;1). Und Vorzeichenfehler beim
-            Faktorisieren: x&sup2;+5x&minus;6 = (x+6)(x&minus;1), NICHT (x&minus;6)(x+1) - immer durch Ausmultiplizieren gegenpruefen.
+            Faktorisieren: x&sup2;+5x&minus;6 = (x+6)(x&minus;1), NICHT (x&minus;6)(x+1) - immer durch Ausmultiplizieren gegenprüfen.
           </FalleCard>
           <Varianten items={[
             { q: "NK INF23:", t: "∫ (7+3x)/(x²−5x+6) dx ,  Nenner = (x−2)(x−3)" },
@@ -1090,40 +1266,40 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ 12 - BONUS INF24 ============ */}
-        <Section kicker="Aufgabentyp 12 &middot; Bonus (nur INF24)" title="Kurvendiskussion der Glockenkurve & vollstaendige Induktion">
+        <Section id="t12" kicker="Aufgabentyp 12 &middot; Bonus (nur INF24)" title="Kurvendiskussion der Glockenkurve & vollständige Induktion">
           <LösungsStepper
             quelle="INF24 - Bonus: Glockenkurve"
-            aufgabe={<>Untersuche f(x) = e<sup>&minus;x&sup2;/2</sup>: globales Maximum, Konkavitaet auf [&minus;0,5; 0,5], Wendepunkte.</>}
+            aufgabe={<>Untersuche f(x) = e<sup>&minus;x&sup2;/2</sup>: globales Maximum, Konkavität auf [&minus;0,5; 0,5], Wendepunkte.</>}
             schritte={[
               { formel: <>f'(x) = &minus;x &middot; e<sup>&minus;x&sup2;/2</sup></>,
                 warum: "Kettenregel: innere Ableitung von -x²/2 ist -x. Die e-Funktion bleibt." },
               { formel: <>f'(x) = 0 &rArr; x = 0 (e-Term nie 0).</>,
                 warum: "Ein Produkt ist 0, wenn ein Faktor 0 ist; e^{...} > 0 immer, also nur x=0." },
               { formel: <>f(0) = e<sup>0</sup> = 1 &rArr; globales Maximum (1; 0).</>,
-                warum: "Bei x=0 ist die Funktion am groessten; sie faellt nach beiden Seiten symmetrisch ab." },
+                warum: "Bei x=0 ist die Funktion am größten; sie fällt nach beiden Seiten symmetrisch ab." },
               { formel: <>f''(x) = (x&sup2; &minus; 1) e<sup>&minus;x&sup2;/2</sup></>,
-                warum: "Produkt- und Kettenregel auf f'. Das Vorzeichen von f'' steuert die Kruemmung." },
+                warum: "Produkt- und Kettenregel auf f'. Das Vorzeichen von f'' steuert die Krümmung." },
               { formel: <>Auf [&minus;0,5; 0,5]: x&sup2;&minus;1 &lt; 0 &rArr; f'' &lt; 0 &rArr; konkav.</>,
-                warum: "Fuer |x|<1 ist x²-1 negativ, also f''<0 -> Rechtskruemmung (konkav)." },
-              { formel: <><b>Wendepunkte: f''=0 &rArr; x = &plusmn;1; konvex fuer |x| &gt; 1.</b></>,
-                warum: "Bei x=±1 wechselt die Kruemmung. Ausserhalb [-1,1] ist x²-1>0 -> f''>0 -> konvex." },
+                warum: "Für |x|<1 ist x²-1 negativ, also f''<0 -> Rechtskrümmung (konkav)." },
+              { formel: <><b>Wendepunkte: f''=0 &rArr; x = &plusmn;1; konvex für |x| &gt; 1.</b></>,
+                warum: "Bei x=±1 wechselt die Krümmung. Außerhalb [-1,1] ist x²-1>0 -> f''>0 -> konvex." },
             ]}
           />
           <div style={{ marginTop: 18 }}>
             <LösungsStepper
               quelle="INF24 - Bonus: Induktion"
-              aufgabe={<>Zeige per vollstaendiger Induktion: &#8721;<sub>k=1</sub><sup>n</sup> (2k&minus;1) = n&sup2;.</>}
+              aufgabe={<>Zeige per vollständiger Induktion: &#8721;<sub>k=1</sub><sup>n</sup> (2k&minus;1) = n&sup2;.</>}
               schritte={[
                 { formel: <>Induktionsanfang n=1: linke Seite = 2&middot;1&minus;1 = 1 = 1&sup2;. &#10003;</>,
-                  warum: "Die Aussage fuer den kleinsten Fall (n=1) direkt nachrechnen - sie stimmt." },
+                  warum: "Die Aussage für den kleinsten Fall (n=1) direkt nachrechnen - sie stimmt." },
                 { formel: <>Induktionsannahme: &#8721;<sub>k=1</sub><sup>n</sup>(2k&minus;1) = n&sup2; gelte.</>,
-                  warum: "Wir nehmen an, die Formel sei fuer ein beliebiges n schon wahr (Annahme), und schliessen auf n+1." },
+                  warum: "Wir nehmen an, die Formel sei für ein beliebiges n schon wahr (Annahme), und schließen auf n+1." },
                 { formel: <>Schritt n&rarr;n+1: &#8721;<sub>k=1</sub><sup>n+1</sup> = n&sup2; + (2(n+1)&minus;1)</>,
-                  warum: "Die Summe bis n+1 = (Summe bis n, das ist n² nach Annahme) + das neue Glied fuer k=n+1." },
+                  warum: "Die Summe bis n+1 = (Summe bis n, das ist n² nach Annahme) + das neue Glied für k=n+1." },
                 { formel: <>= n&sup2; + 2n + 2 &minus; 1 = n&sup2; + 2n + 1</>,
                   warum: "Das neue Glied 2(n+1)-1 = 2n+1 ausrechnen und addieren." },
                 { formel: <><b>= (n+1)&sup2;</b> &#10003;</>,
-                  warum: "Erste binomische Formel: n²+2n+1 = (n+1)² - genau die Behauptung fuer n+1. Induktion abgeschlossen." },
+                  warum: "Erste binomische Formel: n²+2n+1 = (n+1)² - genau die Behauptung für n+1. Induktion abgeschlossen." },
               ]}
             />
           </div>
@@ -1135,13 +1311,13 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ PRUEFUNGSSTRATEGIE ============ */}
-        <Section kicker="Klausurtaktik" title="Pruefungsstrategie - 75 Minuten clever einteilen">
+        <Section id="strategie" kicker="Klausurtaktik" title="Prüfungsstrategie - 75 Minuten clever einteilen">
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <Card style={{ flex: 1, minWidth: 240 }}>
               <div style={{ fontWeight: 800, color: C.good, marginBottom: 10 }}>1. Sichere Punkte zuerst</div>
               <div style={{ fontSize: 14, color: C.dim, lineHeight: 1.7 }}>
                 Erst die Typen, die du sicher beherrschst (oft Ableitungen, Folgen-Grenzwerte, Reihen). Schnelle Punkte
-                holen, Selbstvertrauen aufbauen - nicht an Aufgabe 1 festbeissen.
+                holen, Selbstvertrauen aufbauen - nicht an Aufgabe 1 festbeißen.
               </div>
             </Card>
             <Card style={{ flex: 1, minWidth: 240 }}>
@@ -1162,29 +1338,29 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ ZUSAMMENFASSUNG ============ */}
-        <Section kicker="Auf einen Blick" title="Aufgabentyp → Schluesselmethode → typische Falle">
+        <Section id="zusammenfassung" kicker="Auf einen Blick" title="Aufgabentyp → Schlüsselmethode → typische Falle">
           <Card style={{ background: `${C.accent}0c`, borderColor: `${C.accent}33`, padding: 0, overflow: "hidden" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
                 <thead>
                   <tr style={{ background: C.panel2, textAlign: "left" }}>
                     <th style={{ padding: "10px 14px", color: C.accent, fontWeight: 700 }}>Typ</th>
-                    <th style={{ padding: "10px 14px", color: C.accent2, fontWeight: 700 }}>Schluesselmethode</th>
+                    <th style={{ padding: "10px 14px", color: C.accent2, fontWeight: 700 }}>Schlüsselmethode</th>
                     <th style={{ padding: "10px 14px", color: C.warn, fontWeight: 700 }}>Typische Falle</th>
                   </tr>
                 </thead>
                 <tbody style={{ color: C.dim }}>
                   {[
                     ["Unstetigkeit", "links-/rechtsseitigen Grenzwert vergleichen", "Oszillation vs. Polstelle verwechseln"],
-                    ["Folgen-Grenzwerte", "hoechste n-Potenz kuerzen", "n/n = 1, nicht 0"],
-                    ["Reihen", "Kriterium waehlen (Leibniz/geom./harm.)", "1/n -> 0 heisst NICHT konvergent"],
+                    ["Folgen-Grenzwerte", "höchste n-Potenz kürzen", "n/n = 1, nicht 0"],
+                    ["Reihen", "Kriterium wählen (Leibniz/geom./harm.)", "1/n -> 0 heißt NICHT konvergent"],
                     ["Verkettung", "g(f(x)), Definitionsbereich von f", "Definitionsbereich vergessen"],
                     ["Grenzwert-Beweis", "Ableitungsdefinition", "Zirkelschluss mit L'Hospital"],
                     ["Ableitungen", "Ketten-/Produkt-/log. Ableitung", "innere Ableitung vergessen"],
-                    ["L'Hospital", "Zaehler & Nenner getrennt ableiten", "Quotientenregel statt getrennt"],
-                    ["Taylorreihe", "f^(k)(0) / k! einsetzen", "Fakultaet im Nenner vergessen"],
-                    ["Integrale", "partielle Int. / Substitution", "+C vergessen, u falsch waehlen"],
-                    ["Uneigentl. Integral", "kritische Grenze als Limes", "Unbeschraenktheit uebersehen"],
+                    ["L'Hospital", "Zähler & Nenner getrennt ableiten", "Quotientenregel statt getrennt"],
+                    ["Taylorreihe", "f^(k)(0) / k! einsetzen", "Fakultät im Nenner vergessen"],
+                    ["Integrale", "partielle Int. / Substitution", "+C vergessen, u falsch wählen"],
+                    ["Uneigentl. Integral", "kritische Grenze als Limes", "Unbeschränktheit übersehen"],
                     ["Partialbruchzerlegung", "Nenner faktorisieren, A,B bestimmen", "Betrag bei ln, Vorzeichen"],
                     ["Bonus (INF24)", "Kurvendiskussion / Induktion", "Annahme im Schritt nicht nutzen"],
                   ].map((row, i) => (
@@ -1201,39 +1377,39 @@ export default function AnalysisKlausurtrainer() {
         </Section>
 
         {/* ============ GLOSSAR ============ */}
-        <Section kicker="Nachschlagen" title="Glossar - alle Begriffe & Symbole">
+        <Section id="glossar" kicker="Nachschlagen" title="Glossar - alle Begriffe & Symbole">
           <Card>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "14px 28px" }}>
-              <GlossEntry term="Unstetigkeit" def="Stelle, an der eine Funktion nicht durchgaengig ist: hebbar, Sprung, Polstelle oder Oszillation." />
+              <GlossEntry term="Unstetigkeit" def="Stelle, an der eine Funktion nicht durchgängig ist: hebbar, Sprung, Polstelle oder Oszillation." />
               <GlossEntry term="hebbare Unstetigkeit" def="Links- und rechtsseitiger Grenzwert gleich, nur der Funktionswert fehlt (Loch)." />
               <GlossEntry term="Sprungstelle" def="Links- und rechtsseitiger Grenzwert existieren, sind aber verschieden." />
               <GlossEntry term="Polstelle" def="Mindestens ein einseitiger Grenzwert ist +/- unendlich." />
               <GlossEntry term="Oszillation" def="Funktion schwingt unendlich oft, kein Grenzwert (z. B. sin(1/x) bei 0)." />
-              <GlossEntry term="Grenzwert (lim)" def="Wert, dem sich eine Funktion/Folge naehert, wenn x bzw. n gegen etwas laeuft." />
-              <GlossEntry term="Konvergenz" def="Eine Folge/Reihe naehert sich einem festen, endlichen Wert." />
-              <GlossEntry term="Divergenz" def="Eine Folge/Reihe naehert sich keinem endlichen Wert (waechst unbegrenzt oder pendelt)." />
+              <GlossEntry term="Grenzwert (lim)" def="Wert, dem sich eine Funktion/Folge nähert, wenn x bzw. n gegen etwas läuft." />
+              <GlossEntry term="Konvergenz" def="Eine Folge/Reihe nähert sich einem festen, endlichen Wert." />
+              <GlossEntry term="Divergenz" def="Eine Folge/Reihe nähert sich keinem endlichen Wert (wächst unbegrenzt oder pendelt)." />
               <GlossEntry term="Leibniz-Kriterium" def="Alternierende Reihe mit monoton fallender Nullfolge konvergiert." />
               <GlossEntry term="geometrische Reihe" def="Summe q^n; konvergiert genau dann, wenn |q| < 1 (Summe 1/(1-q))." />
               <GlossEntry term="harmonische Reihe" def="Summe 1/n; divergiert, obwohl die Glieder gegen 0 gehen." />
               <GlossEntry term="notwendiges Kriterium" def="Gehen die Glieder nicht gegen 0, divergiert die Reihe sicher." />
               <GlossEntry term="Verkettung (g∘f)" def="g(f(x)) - erst f, dann g; Reihenfolge beachten." />
-              <GlossEntry term="Definitionsbereich" def="Menge aller x, fuer die die Funktion erlaubt ist (z. B. Radikand >= 0)." />
-              <GlossEntry term="Umkehrfunktion (f⁻¹)" def="Macht f rueckgaengig; y=f(x) nach x aufloesen, dann tauschen." />
-              <GlossEntry term="L'Hospital" def="Bei 0/0 oder unendl./unendl.: Zaehler und Nenner getrennt ableiten." />
-              <GlossEntry term="Kettenregel" def="(f(g(x)))' = f'(g(x))*g'(x): aeussere mal innere Ableitung." />
+              <GlossEntry term="Definitionsbereich" def="Menge aller x, für die die Funktion erlaubt ist (z. B. Radikand >= 0)." />
+              <GlossEntry term="Umkehrfunktion (f⁻¹)" def="Macht f rückgängig; y=f(x) nach x auflösen, dann tauschen." />
+              <GlossEntry term="L'Hospital" def="Bei 0/0 oder unendl./unendl.: Zähler und Nenner getrennt ableiten." />
+              <GlossEntry term="Kettenregel" def="(f(g(x)))' = f'(g(x))*g'(x): äußere mal innere Ableitung." />
               <GlossEntry term="Produktregel" def="(u*v)' = u'v + uv'." />
-              <GlossEntry term="logarithmische Ableitung" def="Bei x^x o. ae.: erst ln nehmen, dann implizit ableiten." />
-              <GlossEntry term="Taylorreihe" def="Naeherung f(x) = Summe f^(k)(a)/k! * (x-a)^k; hier a=0." />
-              <GlossEntry term="Fakultaet (n!)" def="Produkt 1*2*...*n; 2!=2, 3!=6." />
-              <GlossEntry term="partielle Integration" def="∫ u'v = uv − ∫ uv'; fuer Produkte." />
+              <GlossEntry term="logarithmische Ableitung" def="Bei x^x o. Ä.: erst ln nehmen, dann implizit ableiten." />
+              <GlossEntry term="Taylorreihe" def="Näherung f(x) = Summe f^(k)(a)/k! * (x-a)^k; hier a=0." />
+              <GlossEntry term="Fakultät (n!)" def="Produkt 1*2*...*n; 2!=2, 3!=6." />
+              <GlossEntry term="partielle Integration" def="∫ u'v = uv − ∫ uv'; für Produkte." />
               <GlossEntry term="Substitution" def="Innere Funktion u setzen; ∫ f(g)g' dx = ∫ f(u) du." />
-              <GlossEntry term="uneigentliches Integral" def="Integrand/Grenze unbeschraenkt; kritische Grenze als Limes behandeln." />
+              <GlossEntry term="uneigentliches Integral" def="Integrand/Grenze unbeschränkt; kritische Grenze als Limes behandeln." />
               <GlossEntry term="Partialbruchzerlegung" def="Bruch in A/(x-a)+B/(x-b) zerlegen, dann einzeln integrieren." />
-              <GlossEntry term="konkav" def="Rechtsgekruemmt, f'' < 0 ('nach unten geoeffnet')." />
-              <GlossEntry term="konvex" def="Linksgekruemmt, f'' > 0 ('nach oben geoeffnet')." />
-              <GlossEntry term="Wendepunkt" def="Stelle, an der die Kruemmung wechselt (f'' = 0 mit Vorzeichenwechsel)." />
-              <GlossEntry term="vollstaendige Induktion" def="Beweis: Anfang (n=1) + Schritt (n -> n+1) unter Nutzung der Annahme." />
-              <GlossEntry term="ln" def="Natuerlicher Logarithmus (Umkehrung der e-Funktion)." />
+              <GlossEntry term="konkav" def="Rechtsgekrümmt, f'' < 0 ('nach unten geöffnet')." />
+              <GlossEntry term="konvex" def="Linksgekrümmt, f'' > 0 ('nach oben geöffnet')." />
+              <GlossEntry term="Wendepunkt" def="Stelle, an der die Krümmung wechselt (f'' = 0 mit Vorzeichenwechsel)." />
+              <GlossEntry term="vollständige Induktion" def="Beweis: Anfang (n=1) + Schritt (n -> n+1) unter Nutzung der Annahme." />
+              <GlossEntry term="ln" def="Natürlicher Logarithmus (Umkehrung der e-Funktion)." />
               <GlossEntry term="Integrationskonstante C" def="Bei unbestimmten Integralen immer + C dazu." />
             </div>
           </Card>
