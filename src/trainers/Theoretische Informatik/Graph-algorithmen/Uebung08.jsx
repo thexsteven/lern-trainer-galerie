@@ -410,7 +410,7 @@ function DijkstraGraph({ snap }) {
   const relaxKeys = {}; snap.relax.forEach((r) => { relaxKeys[snap.active + r.to] = r.ok; });
 
   return (
-    <svg viewBox="0 0 460 300" style={{ width: "100%", height: "auto", display: "block" }}>
+    <svg viewBox="0 0 460 300" style={{ width: "100%", height: "auto", maxWidth: 460, margin: "0 auto", display: "block" }}>
       <defs>
         {[["def", C.border], ["tree", C.accent], ["ok", C.good], ["no", C.bad], ["path", C.good]].map(([id, col]) => (
           <marker key={id} id={`dj-${id}`} markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -664,7 +664,7 @@ function DFSGraph({ caseDef, ev }) {
   const treeEdges = new Set();
   // Baumkanten aus bisher gesehenen tree-Events ableiten: nutze ev.color (Knoten, die pi bekamen)
   return (
-    <svg viewBox="0 0 460 270" style={{ width: "100%", height: "auto", display: "block" }}>
+    <svg viewBox="0 0 460 270" style={{ width: "100%", height: "auto", maxWidth: 400, margin: "0 auto", display: "block" }}>
       <defs>
         {Object.entries(ETYPE_COLOR).concat([["def", C.border]]).map(([id, col]) => (
           <marker key={id} id={`dfs-${id}`} markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -721,7 +721,7 @@ function IntervalTimeline({ caseDef, ev }) {
   return (
     <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginTop: 12 }}>
       <div style={{ color: C.textDim, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Klammerungssatz: Intervalle [d, f]</div>
-      <svg viewBox={`0 0 ${maxT * slot + 40} ${nodes.length * 30 + 24}`} style={{ width: "100%", height: "auto" }}>
+      <svg viewBox={`0 0 ${maxT * slot + 40} ${nodes.length * 30 + 24}`} style={{ width: "100%", height: "auto", maxWidth: 320, display: "block" }}>
         {Array.from({ length: maxT + 1 }, (_, t) => (
           <g key={t}>
             <line x1={30 + t * slot} y1={6} x2={30 + t * slot} y2={nodes.length * 30 + 6} stroke={C.border} strokeWidth={1} />
@@ -890,7 +890,7 @@ function BipartiteVis() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         <div style={{ background: C.bg, borderRadius: 12, padding: 10 }}>
-          <svg viewBox="0 0 460 300" style={{ width: "100%", height: "auto", display: "block" }}>
+          <svg viewBox="0 0 460 300" style={{ width: "100%", height: "auto", maxWidth: 460, margin: "0 auto", display: "block" }}>
             {caseDef.edges.map(([a, b], i) => {
               const pa = caseDef.nodes[a], pb = caseDef.nodes[b];
               const st = edgeState(a, b);
