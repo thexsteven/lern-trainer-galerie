@@ -9,6 +9,53 @@ import { useState, useMemo } from "react";
 // ============================================================================
 
 // ---------------------------------------------------------------------------
+// Styling: GitHub-Dark-Palette + wiederkehrende Inline-Styles
+// (Das Projekt hat kein Tailwind — alle Trainer stylen inline.)
+// ---------------------------------------------------------------------------
+const SANS =
+  "-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,Helvetica,Arial,sans-serif";
+const MONO = "'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace";
+
+const C = {
+  bg: "#0d1117",
+  panel: "#161b22",
+  panelSoft: "#1c2128",
+  line: "#30363d",
+  text: "#c9d1d9",
+  bright: "#e6edf3",
+  dim: "#8b949e",
+  faint: "#484f58",
+  blue: "#58a6ff",
+  codeBlue: "#79c0ff",
+  green: "#3fb950",
+  red: "#f85149",
+  yellow: "#d29922",
+  purple: "#bc8cff",
+};
+
+const card = { borderRadius: 8, border: `1px solid ${C.line}`, background: C.panel };
+const codePre = {
+  margin: 0,
+  overflowX: "auto",
+  borderRadius: 6,
+  background: C.bg,
+  padding: 12,
+  fontFamily: MONO,
+  fontSize: 13,
+  color: C.text,
+};
+const advBadge = {
+  marginLeft: 8,
+  borderRadius: 4,
+  background: "#3d2c00",
+  padding: "2px 6px",
+  fontSize: 11,
+  fontWeight: 600,
+  color: C.yellow,
+};
+const col = (gap) => ({ display: "flex", flexDirection: "column", gap });
+
+// ---------------------------------------------------------------------------
 // Hilfs-Renderer: wandelt `code` in Erklärtexten in <code>-Spans um
 // ---------------------------------------------------------------------------
 function T({ s }) {
@@ -19,7 +66,14 @@ function T({ s }) {
         i % 2 === 1 ? (
           <code
             key={i}
-            className="rounded bg-[#1c2431] px-1 py-0.5 font-mono text-[0.85em] text-[#79c0ff]"
+            style={{
+              borderRadius: 4,
+              background: "#1c2431",
+              padding: "1px 4px",
+              fontFamily: MONO,
+              fontSize: "0.85em",
+              color: C.codeBlue,
+            }}
           >
             {p}
           </code>
@@ -38,16 +92,33 @@ function CodeBlock({ start, code, dim = false }) {
   const lines = code.split("\n");
   return (
     <pre
-      className={`overflow-x-auto rounded-md bg-[#0d1117] p-3 text-[13px] leading-relaxed ${
-        dim ? "opacity-60" : ""
-      }`}
+      style={{
+        margin: 0,
+        overflowX: "auto",
+        borderRadius: 6,
+        background: C.bg,
+        padding: 12,
+        fontSize: 13,
+        lineHeight: 1.6,
+        opacity: dim ? 0.6 : 1,
+      }}
     >
       {lines.map((line, i) => (
-        <div key={i} className="flex">
-          <span className="w-12 shrink-0 select-none pr-3 text-right font-mono text-[#484f58]">
+        <div key={i} style={{ display: "flex" }}>
+          <span
+            style={{
+              width: 48,
+              flexShrink: 0,
+              userSelect: "none",
+              paddingRight: 12,
+              textAlign: "right",
+              fontFamily: MONO,
+              color: C.faint,
+            }}
+          >
             {start + i}
           </span>
-          <code className="whitespace-pre font-mono text-[#c9d1d9]">
+          <code style={{ whiteSpace: "pre", fontFamily: MONO, color: C.text }}>
             {line === "" ? " " : line}
           </code>
         </div>
@@ -1336,54 +1407,88 @@ function SectionExplorer() {
   };
 
   return (
-    <div className="space-y-8">
-      <p className="text-sm text-[#8b949e]">
+    <div style={col(32)}>
+      <p style={{ margin: 0, fontSize: 14, color: C.dim }}>
         Klicke auf eine Code-Gruppe, um die Erklärung ein-/auszublenden. Zeilennummern
-        entsprechen exakt <span className="font-mono text-[#c9d1d9]">src/pipeline.py</span>.
+        entsprechen exakt{" "}
+        <span style={{ fontFamily: MONO, color: C.text }}>src/pipeline.py</span>.
         Ausgelassen (weil Muster-Wiederholung oder reine Plotly-Kosmetik): Z. 234–248,
         283–408, 434–534, 648–859 — ihr Bauplan wird in Sektion 7 erklärt.
       </p>
       {SECTIONS.map((section) => (
-        <section key={section.id} className="rounded-lg border border-[#30363d] bg-[#161b22]">
-          <div className="border-b border-[#30363d] px-4 py-3">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <h3 className="text-base font-semibold text-[#e6edf3]">{section.title}</h3>
-              <span className="font-mono text-xs text-[#8b949e]">{section.range}</span>
+        <section key={section.id} style={card}>
+          <div style={{ borderBottom: `1px solid ${C.line}`, padding: "12px 16px" }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "baseline",
+                columnGap: 12,
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: C.bright }}>
+                {section.title}
+              </h3>
+              <span style={{ fontFamily: MONO, fontSize: 12, color: C.dim }}>
+                {section.range}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-[#8b949e]">
+            <p style={{ margin: "4px 0 0", fontSize: 14, color: C.dim }}>
               <T s={section.intro} />
             </p>
           </div>
-          <div className="space-y-3 p-4">
+          <div style={{ ...col(12), padding: 16 }}>
             {section.groups.map((group) => {
               const open = openGroups.has(group.id);
               return (
                 <div
                   key={group.id}
-                  className={`overflow-hidden rounded-md border ${
-                    open ? "border-[#58a6ff]" : "border-[#30363d]"
-                  }`}
+                  style={{
+                    overflow: "hidden",
+                    borderRadius: 6,
+                    border: `1px solid ${open ? C.blue : C.line}`,
+                  }}
                 >
                   <button
                     type="button"
+                    className="pot-acc"
                     onClick={() => toggle(group.id)}
-                    className="flex w-full items-center justify-between gap-2 bg-[#1c2128] px-3 py-2 text-left hover:bg-[#22272e]"
+                    style={{
+                      display: "flex",
+                      width: "100%",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      background: C.panelSoft,
+                      border: "none",
+                      padding: "8px 12px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
                   >
-                    <span className="text-sm font-medium text-[#e6edf3]">
+                    <span style={{ fontSize: 14, fontWeight: 500, color: C.bright }}>
                       {group.title}
-                      {group.advanced && (
-                        <span className="ml-2 rounded bg-[#3d2c00] px-1.5 py-0.5 text-[11px] font-semibold text-[#d29922]">
-                          ⚡ Fortgeschritten
-                        </span>
-                      )}
+                      {group.advanced && <span style={advBadge}>⚡ Fortgeschritten</span>}
                     </span>
-                    <span className="shrink-0 font-mono text-xs text-[#58a6ff]">
+                    <span
+                      style={{ flexShrink: 0, fontFamily: MONO, fontSize: 12, color: C.blue }}
+                    >
                       {open ? "− Erklärung" : "+ Erklärung"}
                     </span>
                   </button>
                   <CodeBlock start={group.start} code={group.code} />
                   {open && (
-                    <div className="border-t border-[#30363d] bg-[#0d1420] px-4 py-3 text-sm leading-relaxed text-[#c9d1d9]">
+                    <div
+                      style={{
+                        borderTop: `1px solid ${C.line}`,
+                        background: "#0d1420",
+                        padding: "12px 16px",
+                        fontSize: 14,
+                        lineHeight: 1.625,
+                        color: C.text,
+                      }}
+                    >
                       <T s={group.text} />
                     </div>
                   )}
@@ -1411,20 +1516,29 @@ function StageSimulator() {
   }, [selected]);
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4">
-        <p className="text-sm leading-relaxed text-[#c9d1d9]">
+    <div style={col(20)}>
+      <div style={{ ...card, padding: 16 }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.625, color: C.text }}>
           Simuliere den Kontrollfluss von <T s="`run_pipeline` (Z. 862–1068)" />: Wähle einen{" "}
           <T s="`stop_after`" />
           -Wert und sieh, was passiert — welche Stages laufen, wo <T s="`break`" /> greift
           (Z. 1044–1045) und welche Guards vorher zuschlagen (Z. 889–890).
         </p>
-        <label className="mt-3 block text-sm text-[#8b949e]">
+        <label style={{ marginTop: 12, display: "block", fontSize: 14, color: C.dim }}>
           config.stop_after ={" "}
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            className="ml-2 rounded-md border border-[#30363d] bg-[#0d1117] px-2 py-1 font-mono text-sm text-[#e6edf3]"
+            style={{
+              marginLeft: 8,
+              borderRadius: 6,
+              border: `1px solid ${C.line}`,
+              background: C.bg,
+              padding: "4px 8px",
+              fontFamily: MONO,
+              fontSize: 14,
+              color: C.bright,
+            }}
           >
             {SIM_STAGES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -1437,69 +1551,110 @@ function StageSimulator() {
       </div>
 
       {result.kind === "valueerror" && (
-        <div className="rounded-lg border border-[#f85149] bg-[#2d1214] p-4">
-          <p className="font-mono text-sm text-[#f85149]">
+        <div
+          style={{
+            borderRadius: 8,
+            border: `1px solid ${C.red}`,
+            background: "#2d1214",
+            padding: 16,
+          }}
+        >
+          <p style={{ margin: 0, fontFamily: MONO, fontSize: 14, color: C.red }}>
             ValueError: Invalid stop_after stage 'cycles'. Valid stages: metadata,
             signal_discovery, timestamp_analysis, session_detection, cycle_detection,
             multi_sensor_extraction, cycle_quality_profiling, feature_engineering,
             dataset_generation.
           </p>
-          <p className="mt-2 text-sm text-[#c9d1d9]">
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: C.text }}>
             <T s="`_normalize_stage` (Z. 147–156) fängt die ValueError des Enum-Konstruktors und wirft eine bessere — mit `!r` in Quotes und der vollständigen Liste aus dem Generator-Ausdruck. Dank `raise ... from exc` bleibt die Original-Exception im Traceback sichtbar. Es wurde noch KEIN Verzeichnis angelegt: Der Check läuft in Z. 889, `_build_run_paths` erst in Z. 892." />
           </p>
         </div>
       )}
 
       {result.kind === "notimplemented" && (
-        <div className="rounded-lg border border-[#d29922] bg-[#2d2410] p-4">
-          <p className="font-mono text-sm text-[#d29922]">
+        <div
+          style={{
+            borderRadius: 8,
+            border: `1px solid ${C.yellow}`,
+            background: "#2d2410",
+            padding: 16,
+          }}
+        >
+          <p style={{ margin: 0, fontFamily: MONO, fontSize: 14, color: C.yellow }}>
             NotImplementedError: Pipeline stage '{result.stage.value}' is defined but not
             implemented yet.
           </p>
-          <p className="mt-2 text-sm text-[#c9d1d9]">
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: C.text }}>
             <T s="Die Stage existiert in der Enum und in STAGE_ORDER, fehlt aber im frozenset IMPLEMENTED_STAGES (Z. 75–85). `_ensure_stage_is_implemented(stop_stage)` in Z. 890 schlägt zu, BEVOR irgendein Ordner oder Manifest erzeugt wird — fail fast. Die Datenstruktur dokumentiert damit ehrlich den Projektstand der Thesis." />
           </p>
         </div>
       )}
 
       {result.kind === "run" && (
-        <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4">
-          <p className="mb-3 text-sm text-[#8b949e]">
-            Schleife über <span className="font-mono text-[#c9d1d9]">STAGE_ORDER</span> (Z.
-            1021), Manifest-Update nach jeder Stage:
+        <div style={{ ...card, padding: 16 }}>
+          <p style={{ margin: "0 0 12px", fontSize: 14, color: C.dim }}>
+            Schleife über <span style={{ fontFamily: MONO, color: C.text }}>STAGE_ORDER</span>{" "}
+            (Z. 1021), Manifest-Update nach jeder Stage:
           </p>
-          <ol className="space-y-1.5">
+          <ol style={{ ...col(6), margin: 0, padding: 0, listStyle: "none" }}>
             {SIM_STAGES.map((s, i) => {
               const runs = i <= result.stopIndex;
               const isStop = i === result.stopIndex;
               return (
-                <li key={s.value} className="flex items-center gap-3 font-mono text-sm">
+                <li
+                  key={s.value}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    fontFamily: MONO,
+                    fontSize: 14,
+                  }}
+                >
                   <span
-                    className={`inline-block w-5 text-center ${
-                      runs ? "text-[#3fb950]" : "text-[#484f58]"
-                    }`}
+                    style={{
+                      display: "inline-block",
+                      width: 20,
+                      textAlign: "center",
+                      color: runs ? C.green : C.faint,
+                    }}
                   >
                     {runs ? "✓" : "·"}
                   </span>
-                  <span className={runs ? "text-[#e6edf3]" : "text-[#484f58] line-through"}>
+                  <span
+                    style={
+                      runs
+                        ? { color: C.bright }
+                        : { color: C.faint, textDecoration: "line-through" }
+                    }
+                  >
                     {s.value}
                   </span>
                   {runs && (
-                    <span className="text-xs text-[#8b949e]">→ …/{s.dir}/</span>
+                    <span style={{ fontSize: 12, color: C.dim }}>→ …/{s.dir}/</span>
                   )}
                   {isStop && (
-                    <span className="rounded bg-[#0d2d6b] px-1.5 py-0.5 text-[11px] font-semibold text-[#79c0ff]">
+                    <span
+                      style={{
+                        borderRadius: 4,
+                        background: "#0d2d6b",
+                        padding: "2px 6px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: C.codeBlue,
+                      }}
+                    >
                       stop_stage → break (Z. 1044)
                     </span>
                   )}
                   {!runs && (
-                    <span className="text-xs text-[#484f58]">wird nie erreicht</span>
+                    <span style={{ fontSize: 12, color: C.faint }}>wird nie erreicht</span>
                   )}
                 </li>
               );
             })}
           </ol>
-          <p className="mt-3 text-sm text-[#c9d1d9]">
+          <p style={{ margin: "12px 0 0", fontSize: 14, color: C.text }}>
             <T s="Alle ✓-Stages schreiben ihre Ergebnisse nach `results[stage.value]` und ihre Pfade ins Manifest (Z. 1035–1038). Ordner für ALLE 9 Stages werden übrigens trotzdem angelegt (`_build_run_paths` iteriert über das komplette STAGE_DIRECTORIES-Dict, Z. 181–186) — die übersprungenen bleiben einfach leer." />
           </p>
         </div>
@@ -1511,8 +1666,8 @@ function StageSimulator() {
 function Glossary() {
   const [openCard, setOpenCard] = useState(null);
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-[#8b949e]">
+    <div style={col(12)}>
+      <p style={{ margin: 0, fontSize: 14, color: C.dim }}>
         Jedes Konzept, das in dieser Datei tatsächlich vorkommt — mit der echten Fundstelle.
         Karte anklicken zum Aufklappen.
       </p>
@@ -1521,50 +1676,65 @@ function Glossary() {
         return (
           <div
             key={g.name}
-            className={`rounded-lg border ${
-              open ? "border-[#bc8cff]" : "border-[#30363d]"
-            } bg-[#161b22]`}
+            style={{
+              borderRadius: 8,
+              border: `1px solid ${open ? C.purple : C.line}`,
+              background: C.panel,
+            }}
           >
             <button
               type="button"
+              className="pot-card-btn"
               onClick={() => setOpenCard(open ? null : i)}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left hover:bg-[#1c2128]"
+              style={{
+                display: "flex",
+                width: "100%",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                background: "transparent",
+                border: "none",
+                padding: "12px 16px",
+                textAlign: "left",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
             >
-              <span className="text-sm font-semibold text-[#e6edf3]">
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.bright }}>
                 {g.name}
-                {g.advanced && (
-                  <span className="ml-2 rounded bg-[#3d2c00] px-1.5 py-0.5 text-[11px] font-semibold text-[#d29922]">
-                    ⚡ Fortgeschritten
-                  </span>
-                )}
+                {g.advanced && <span style={advBadge}>⚡ Fortgeschritten</span>}
               </span>
-              <span className="shrink-0 font-mono text-xs text-[#bc8cff]">
+              <span style={{ flexShrink: 0, fontFamily: MONO, fontSize: 12, color: C.purple }}>
                 {g.hier} {open ? "▲" : "▼"}
               </span>
             </button>
             {open && (
-              <div className="space-y-3 border-t border-[#30363d] px-4 py-3 text-sm leading-relaxed">
+              <div
+                style={{
+                  ...col(12),
+                  borderTop: `1px solid ${C.line}`,
+                  padding: "12px 16px",
+                  fontSize: 14,
+                  lineHeight: 1.625,
+                }}
+              >
                 <div>
-                  <span className="font-semibold text-[#79c0ff]">Was: </span>
-                  <span className="text-[#c9d1d9]">
+                  <span style={{ fontWeight: 600, color: C.codeBlue }}>Was: </span>
+                  <span style={{ color: C.text }}>
                     <T s={g.was} />
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-[#3fb950]">Hier ({g.hier}): </span>
-                  <pre className="mt-1 overflow-x-auto rounded-md bg-[#0d1117] p-3 font-mono text-[13px] text-[#c9d1d9]">
-                    {g.code}
-                  </pre>
+                  <span style={{ fontWeight: 600, color: C.green }}>Hier ({g.hier}): </span>
+                  <pre style={{ ...codePre, marginTop: 4 }}>{g.code}</pre>
                 </div>
                 <div>
-                  <span className="font-semibold text-[#bc8cff]">Syntax-Anatomie: </span>
-                  <pre className="mt-1 overflow-x-auto rounded-md bg-[#0d1117] p-3 font-mono text-[13px] text-[#8b949e]">
-                    {g.anatomie}
-                  </pre>
+                  <span style={{ fontWeight: 600, color: C.purple }}>Syntax-Anatomie: </span>
+                  <pre style={{ ...codePre, marginTop: 4, color: C.dim }}>{g.anatomie}</pre>
                 </div>
                 <div>
-                  <span className="font-semibold text-[#f85149]">Stolperfalle: </span>
-                  <span className="text-[#c9d1d9]">
+                  <span style={{ fontWeight: 600, color: C.red }}>Stolperfalle: </span>
+                  <span style={{ color: C.text }}>
                     <T s={g.falle} />
                   </span>
                 </div>
@@ -1586,58 +1756,81 @@ function Quiz() {
   ).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between rounded-lg border border-[#30363d] bg-[#161b22] px-4 py-3">
-        <p className="text-sm text-[#8b949e]">
+    <div style={col(24)}>
+      <div
+        style={{
+          ...card,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          padding: "12px 16px",
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 14, color: C.dim }}>
           {QUIZ.length} Fragen zu den kniffligsten Stellen der Datei — jede Antwort wird
           begründet.
         </p>
-        <span className="font-mono text-sm text-[#e6edf3]">
+        <span style={{ flexShrink: 0, fontFamily: MONO, fontSize: 14, color: C.bright }}>
           {correctCount}/{answeredCount} richtig
         </span>
       </div>
       {QUIZ.map((item, qi) => {
         const chosen = answers[qi];
         return (
-          <div key={qi} className="rounded-lg border border-[#30363d] bg-[#161b22] p-4">
-            <p className="mb-3 text-sm font-semibold text-[#e6edf3]">
+          <div key={qi} style={{ ...card, padding: 16 }}>
+            <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: C.bright }}>
               {qi + 1}. <T s={item.q} />
             </p>
-            <div className="space-y-2">
+            <div style={col(8)}>
               {item.options.map((opt, oi) => {
                 const isChosen = chosen === oi;
                 const revealed = chosen !== undefined;
-                let border = "border-[#30363d]";
-                if (revealed && opt.correct) border = "border-[#3fb950]";
-                else if (isChosen && !opt.correct) border = "border-[#f85149]";
+                let borderColor = C.line;
+                if (revealed && opt.correct) borderColor = C.green;
+                else if (isChosen && !opt.correct) borderColor = C.red;
                 return (
                   <div key={oi}>
                     <button
                       type="button"
                       disabled={revealed}
+                      className={revealed ? undefined : "pot-opt"}
                       onClick={() => setAnswers((prev) => ({ ...prev, [qi]: oi }))}
-                      className={`w-full rounded-md border ${border} bg-[#0d1117] px-3 py-2 text-left text-sm text-[#c9d1d9] ${
-                        revealed ? "cursor-default" : "hover:border-[#58a6ff]"
-                      }`}
+                      style={{
+                        width: "100%",
+                        borderRadius: 6,
+                        border: `1px solid ${borderColor}`,
+                        background: C.bg,
+                        padding: "8px 12px",
+                        textAlign: "left",
+                        fontSize: 14,
+                        color: C.text,
+                        cursor: revealed ? "default" : "pointer",
+                        fontFamily: "inherit",
+                      }}
                     >
-                      <span className="mr-2 font-mono text-[#8b949e]">
+                      <span style={{ marginRight: 8, fontFamily: MONO, color: C.dim }}>
                         {String.fromCharCode(65 + oi)})
                       </span>
                       <T s={opt.label} />
                       {revealed && opt.correct && (
-                        <span className="ml-2 font-semibold text-[#3fb950]">✓</span>
+                        <span style={{ marginLeft: 8, fontWeight: 600, color: C.green }}>✓</span>
                       )}
                       {revealed && isChosen && !opt.correct && (
-                        <span className="ml-2 font-semibold text-[#f85149]">✗</span>
+                        <span style={{ marginLeft: 8, fontWeight: 600, color: C.red }}>✗</span>
                       )}
                     </button>
                     {revealed && (isChosen || opt.correct) && (
                       <p
-                        className={`mt-1 rounded-md px-3 py-2 text-[13px] leading-relaxed ${
-                          opt.correct
-                            ? "bg-[#0f2417] text-[#7ee2a8]"
-                            : "bg-[#2d1214] text-[#ffa198]"
-                        }`}
+                        style={{
+                          margin: "4px 0 0",
+                          borderRadius: 6,
+                          padding: "8px 12px",
+                          fontSize: 13,
+                          lineHeight: 1.625,
+                          background: opt.correct ? "#0f2417" : "#2d1214",
+                          color: opt.correct ? "#7ee2a8" : "#ffa198",
+                        }}
                       >
                         <T s={opt.why} />
                       </p>
@@ -1649,6 +1842,7 @@ function Quiz() {
             {chosen !== undefined && (
               <button
                 type="button"
+                className="pot-reset"
                 onClick={() =>
                   setAnswers((prev) => {
                     const next = { ...prev };
@@ -1656,7 +1850,16 @@ function Quiz() {
                     return next;
                   })
                 }
-                className="mt-3 text-xs text-[#58a6ff] hover:underline"
+                style={{
+                  marginTop: 12,
+                  fontSize: 12,
+                  color: C.blue,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
               >
                 Frage zurücksetzen
               </button>
@@ -1671,30 +1874,57 @@ function Quiz() {
 function SelfCheck() {
   const [open, setOpen] = useState({});
   return (
-    <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-4">
-      <h3 className="mb-1 text-base font-semibold text-[#e6edf3]">
+    <div style={{ ...card, padding: 16 }}>
+      <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 600, color: C.bright }}>
         Selbstcheck: Kannst du das erklären?
       </h3>
-      <p className="mb-3 text-sm text-[#8b949e]">
+      <p style={{ margin: "0 0 12px", fontSize: 14, color: C.dim }}>
         Erst selbst laut beantworten, dann Antwort aufklappen.
       </p>
-      <div className="space-y-2">
+      <div style={col(8)}>
         {SELF_CHECK.map((item, i) => (
-          <div key={i} className="rounded-md border border-[#30363d] bg-[#0d1117]">
+          <div
+            key={i}
+            style={{ borderRadius: 6, border: `1px solid ${C.line}`, background: C.bg }}
+          >
             <button
               type="button"
+              className="pot-self-btn"
               onClick={() => setOpen((prev) => ({ ...prev, [i]: !prev[i] }))}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-[#e6edf3] hover:bg-[#161b22]"
+              style={{
+                display: "flex",
+                width: "100%",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                background: "transparent",
+                border: "none",
+                padding: "8px 12px",
+                textAlign: "left",
+                fontSize: 14,
+                color: C.bright,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
             >
               <span>
                 {i + 1}. <T s={item.q} />
               </span>
-              <span className="shrink-0 font-mono text-xs text-[#58a6ff]">
+              <span style={{ flexShrink: 0, fontFamily: MONO, fontSize: 12, color: C.blue }}>
                 {open[i] ? "Antwort ▲" : "Antwort ▼"}
               </span>
             </button>
             {open[i] && (
-              <p className="border-t border-[#30363d] px-3 py-2 text-[13px] leading-relaxed text-[#c9d1d9]">
+              <p
+                style={{
+                  margin: 0,
+                  borderTop: `1px solid ${C.line}`,
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  lineHeight: 1.625,
+                  color: C.text,
+                }}
+              >
                 <T s={item.a} />
               </p>
             )}
@@ -1715,33 +1945,98 @@ const TABS = [
   { id: "quiz", label: "Quiz" },
 ];
 
+// Hover-Effekte gehen nicht als Inline-Style — kleines eingebettetes Stylesheet
+// (gleiches Muster wie Gallery.jsx). !important, weil Inline-Styles sonst gewinnen.
+const hoverStyles = `
+  .pot-acc:hover { background: #22272e !important; }
+  .pot-card-btn:hover { background: #1c2128 !important; }
+  .pot-self-btn:hover { background: #161b22 !important; }
+  .pot-opt:hover { border-color: #58a6ff !important; }
+  .pot-tab-off:hover { color: #e6edf3 !important; }
+  .pot-reset:hover { text-decoration: underline; }
+`;
+
 export default function PipelineOrchestrationTrainer() {
   const [tab, setTab] = useState("code");
 
   return (
-    <div className="min-h-screen bg-[#0d1117] px-4 py-8 text-[#c9d1d9]">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: C.bg,
+        padding: "32px 16px",
+        color: C.text,
+        fontFamily: SANS,
+      }}
+    >
+      <style>{hoverStyles}</style>
+      <div style={{ ...col(24), margin: "0 auto", maxWidth: 896 }}>
         {/* Header-Karte */}
-        <header className="rounded-lg border border-[#30363d] bg-[#161b22] p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-[#0d2d6b] px-2 py-0.5 font-mono text-xs font-semibold text-[#79c0ff]">
+        <header style={{ ...card, padding: 20 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            <span
+              style={{
+                borderRadius: 4,
+                background: "#0d2d6b",
+                padding: "2px 8px",
+                fontFamily: MONO,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.codeBlue,
+              }}
+            >
               Python 3.10+
             </span>
-            <span className="rounded bg-[#2d1b4e] px-2 py-0.5 font-mono text-xs font-semibold text-[#bc8cff]">
+            <span
+              style={{
+                borderRadius: 4,
+                background: "#2d1b4e",
+                padding: "2px 8px",
+                fontFamily: MONO,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.purple,
+              }}
+            >
               MASTERTHESIS_PIPELINE
             </span>
-            <span className="rounded bg-[#1c2128] px-2 py-0.5 font-mono text-xs text-[#8b949e]">
+            <span
+              style={{
+                borderRadius: 4,
+                background: C.panelSoft,
+                padding: "2px 8px",
+                fontFamily: MONO,
+                fontSize: 12,
+                color: C.dim,
+              }}
+            >
               1069 Zeilen
             </span>
           </div>
-          <h1 className="mt-3 font-mono text-xl font-bold text-[#e6edf3]">
+          <h1
+            style={{
+              margin: "12px 0 0",
+              fontFamily: MONO,
+              fontSize: 20,
+              fontWeight: 700,
+              color: C.bright,
+            }}
+          >
             src/pipeline.py
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-[#8b949e]">
+          <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.625, color: C.dim }}>
             Der Orchestrator der Thesis-Preprocessing-Pipeline: definiert die 9 Stages als
             Enum mit drei Registern (Reihenfolge, Implementierungsstatus, Output-Ordner),
             validiert die Konfiguration und führt die Stages bis{" "}
-            <code className="rounded bg-[#1c2431] px-1 font-mono text-[#79c0ff]">
+            <code
+              style={{
+                borderRadius: 4,
+                background: "#1c2431",
+                padding: "0 4px",
+                fontFamily: MONO,
+                color: C.codeBlue,
+              }}
+            >
               stop_after
             </code>{" "}
             aus — mit einem nach jeder Stage aktualisierten JSON-Manifest als crash-sicherem
@@ -1750,9 +2045,18 @@ export default function PipelineOrchestrationTrainer() {
         </header>
 
         {/* Warum dieser Trainer */}
-        <div className="rounded-lg border border-[#238636] bg-[#0f2417] p-4">
-          <h2 className="text-sm font-semibold text-[#3fb950]">Warum dieser Trainer</h2>
-          <p className="mt-1 text-sm leading-relaxed text-[#c9d1d9]">
+        <div
+          style={{
+            borderRadius: 8,
+            border: "1px solid #238636",
+            background: "#0f2417",
+            padding: 16,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: C.green }}>
+            Warum dieser Trainer
+          </h2>
+          <p style={{ margin: "4px 0 0", fontSize: 14, lineHeight: 1.625, color: C.text }}>
             Danach kannst du das Stage-Register-Muster (Enum + Tuple + frozenset + Dict)
             selbst reproduzieren und erklären, warum jede der vier Strukturen die richtige
             ist. Du verstehst die Lambda-Dispatch-Tabelle inklusive verzögerter Auswertung
@@ -1764,21 +2068,31 @@ export default function PipelineOrchestrationTrainer() {
         </div>
 
         {/* Tab-Navigation */}
-        <nav className="flex flex-wrap gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
-                tab === t.id
-                  ? "bg-[#1f6feb] text-white"
-                  : "border border-[#30363d] bg-[#161b22] text-[#8b949e] hover:text-[#e6edf3]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <nav style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {TABS.map((t) => {
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={on ? undefined : "pot-tab-off"}
+                onClick={() => setTab(t.id)}
+                style={{
+                  borderRadius: 6,
+                  padding: "8px 16px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  background: on ? "#1f6feb" : C.panel,
+                  border: `1px solid ${on ? "#1f6feb" : C.line}`,
+                  color: on ? "#ffffff" : C.dim,
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Inhalt */}
@@ -1790,7 +2104,15 @@ export default function PipelineOrchestrationTrainer() {
         {/* Selbstcheck-Footer (immer sichtbar) */}
         <SelfCheck />
 
-        <footer className="pb-4 text-center font-mono text-xs text-[#484f58]">
+        <footer
+          style={{
+            paddingBottom: 16,
+            textAlign: "center",
+            fontFamily: MONO,
+            fontSize: 12,
+            color: C.faint,
+          }}
+        >
           Lern-Trainer · src/pipeline.py · MasterThesisFat
         </footer>
       </div>
