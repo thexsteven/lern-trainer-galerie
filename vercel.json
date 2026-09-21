@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/bibliothek", "destination": "/" },
+    { "source": "/pruefungen", "destination": "/" },
+    { "source": "/trainer/:slug", "destination": "/" }
+  ]
+}

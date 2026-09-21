@@ -4,6 +4,8 @@ node_modules/
 # Build-Output
 dist/
 dist-ssr/
+public/labs/
+tmp/
 
 # Vercel
 .vercel/

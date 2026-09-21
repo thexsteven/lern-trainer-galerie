@@ -1,0 +1,16 @@
+{
+  "name": "Parsing verstehen - Vom Text zum Programm",
+  "short_name": "Parsing",
+  "description": "Interaktive Lernlandkarte zu Lexer, Parser, Grammatik und Compiler.",
+  "start_url": "/compiler-parser/",
+  "scope": "/compiler-parser/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f1e8",
+  "theme_color": "#101619",
+  "icons": [
+    { "src": "/compiler-parser/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/compiler-parser/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/compiler-parser/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

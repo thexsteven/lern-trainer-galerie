@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CYK verstehen · Vom Zeichen zum ganzen Wort</title>
+<style>
+:root{--bg:#f5f3eb;--paper:#fffef9;--ink:#203c35;--muted:#5d7169;--line:#d4ddd1;--green:#235b46;--lime:#dceda8;--blue:#245d92;--orange:#a04720}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:90px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 'Segoe UI',Arial,sans-serif}a{color:var(--green)}button,input,select{font:inherit}button{cursor:pointer}button,a,input,summary{touch-action:manipulation}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #ad6400;outline-offset:4px}button:disabled{opacity:.45;cursor:default}.wrap{max-width:1200px;margin:auto;padding:0 32px}.top{display:flex;justify-content:space-between;gap:18px;padding:22px 0;border-bottom:1px solid var(--line);font-size:13px}.brand{font-weight:800}.brand b{display:inline-block;background:var(--green);color:var(--lime);padding:3px 9px;border-radius:6px;margin-right:9px}.muted{color:var(--muted)}.eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.8px;color:var(--green);margin:0 0 12px}header{display:grid;grid-template-columns:1.2fr 1fr;gap:60px;align-items:center;padding:55px 0 40px}h1{font-size:clamp(40px,5vw,66px);line-height:1.08;letter-spacing:-2.5px;margin:0 0 22px}h1 em{font-style:normal;color:var(--green)}.lead{font-size:18px;color:var(--muted);max-width:610px}.btn{display:inline-block;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);padding:10px 16px;text-decoration:none;font-size:14px;font-weight:650}.btn.primary{background:var(--green);color:white;border-color:var(--green)}.hero{background:var(--green);color:white;border-radius:22px;padding:28px}.hero .eyebrow{color:var(--lime)}.hero p{font-size:14px;color:#e1ebdf}.hero-tree{text-align:center;font-family:Consolas,monospace;font-size:22px;line-height:1.9}.hero-tree b{background:var(--lime);color:var(--ink);padding:5px 18px;border-radius:8px}.hero-tree .dim{color:#b8d4a4}.hero small{display:block;text-align:center;color:#e1ebdf;margin-top:15px}.nav{position:sticky;top:0;z-index:5;display:flex;gap:7px;background:var(--bg);padding:13px 0;border-bottom:1px solid var(--line);overflow:auto}.nav a{white-space:nowrap;font-size:13px;text-decoration:none;padding:7px 13px;border-radius:7px;background:#e7ebdf;font-weight:650}section{padding:42px 0 12px}h2{font-size:31px;letter-spacing:-.8px;line-height:1.2;margin:0 0 17px}h3{font-size:19px;line-height:1.35;margin:0 0 10px}p{margin:0 0 14px}.intro{max-width:790px;color:var(--muted);margin-bottom:24px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:23px}.card p:last-child{margin-bottom:0}.number{display:inline-block;color:var(--green);font:700 12px Consolas,monospace;margin-bottom:15px}.callout{background:#e8eddc;border-left:4px solid var(--green);padding:18px 22px;border-radius:0 12px 12px 0;margin:21px 0}.math,code,pre{font-family:Consolas,'Courier New',monospace}.math{font-size:16px}.formula{padding:16px;background:#edf0e7;border-radius:10px;overflow:auto;white-space:nowrap;margin:14px 0}details{border-top:1px solid var(--line);padding-top:14px;margin-top:17px}summary{cursor:pointer;font-weight:650}details p{margin:12px 0 0}.tag{display:inline-block;background:#e9edde;padding:3px 9px;border-radius:20px;font-size:12px}.steps{padding-left:22px}.steps li{padding-left:5px;margin:9px 0}.rules{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;font-family:Consolas,monospace;font-size:15px}.rules div{padding:5px 0}.lab{background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden}.lab-top{padding:23px;border-bottom:1px solid var(--line)}.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.controls input{width:170px;border:1px solid #9bad9f;padding:8px 12px;border-radius:8px;background:white;color:var(--ink);font-family:Consolas,monospace}.presets{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.presets button{border:1px solid var(--line);background:transparent;border-radius:20px;color:var(--green);padding:3px 11px;font-size:12px}.error{color:#9c352a;margin:10px 0 0}.lab-body{display:grid;grid-template-columns:1.12fr 1fr}.table-side{padding:23px;min-width:0}.explain-side{padding:23px;background:#eef1e7;border-left:1px solid var(--line);min-width:0}.table-scroll{overflow:auto;padding:3px}.matrix{width:100%;border-collapse:separate;border-spacing:5px;table-layout:fixed;min-width:320px}.matrix th{font-size:12px;font-weight:500;color:var(--muted);height:30px}.matrix th:first-child{width:35px}.matrix td{padding:0;height:62px}.cell{width:100%;height:100%;min-height:62px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);font-size:13px;padding:4px;font-family:Consolas,monospace}.cell small{display:block;color:var(--muted);font:10px 'Segoe UI',sans-serif}.cell.pending{background:#f4f4ee;color:#738476}.cell.current{border:2px solid var(--green);background:var(--lime)}.cell.left{border:2px solid var(--blue);background:#e5eefb}.cell.right{border:2px solid var(--orange);background:#fff0e6}.cell.selected{box-shadow:0 0 0 2px var(--green)}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:16px 0}.legend span:before{content:'';display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;background:var(--green)}.legend span:nth-child(2):before{background:var(--blue)}.legend span:nth-child(3):before{background:var(--orange)}.lab-bottom{padding:17px 23px;border-top:1px solid var(--line)}progress{width:100%;height:7px;accent-color:var(--green)}.caption{font-size:12px;color:var(--muted);margin:9px 0 12px}.split{font-family:Consolas,monospace;font-size:27px;letter-spacing:2px;margin:16px 0;overflow-wrap:anywhere}.left-text{color:var(--blue)}.right-text{color:var(--orange)}.split .bar{color:var(--muted);margin:0 7px}.match{padding:10px 12px;background:white;border:1px solid var(--line);border-radius:8px;margin:9px 0;font-size:14px}.result{border-radius:10px;background:#e4edce;padding:13px 16px;margin-top:15px}.result.no{background:#f5e8dd}.tiny{font-size:12px;color:var(--muted)}.trace{font-family:Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:white;border-radius:8px;padding:12px;font-size:14px}.quiz-options{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.quiz-options button{border:1px solid var(--line);border-radius:9px;padding:8px 15px;background:white;color:var(--ink)}.quiz-options button[aria-pressed=true]{background:var(--green);color:white;border-color:var(--green)}.feedback{margin-top:12px;min-height:28px;font-size:14px}.quiz{margin-bottom:16px}.check-options{display:flex;gap:9px;flex-wrap:wrap;margin:13px 0}.check-options label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);padding:5px 12px;border-radius:7px;background:white}.check-options input{accent-color:var(--green);width:17px;height:17px}pre{white-space:pre-wrap;line-height:1.65;font-size:14px;margin-bottom:0}.source{font-size:13px;color:var(--muted)}footer{margin:40px 0 0;border-top:1px solid var(--line);padding:25px 0 35px;color:var(--muted);font-size:12px}.skip{position:absolute;left:-9999px}.skip:focus{left:20px;top:10px;background:white;z-index:10;padding:10px}@media(max-width:900px){header{gap:25px}.grid{grid-template-columns:1fr}.lab-body{grid-template-columns:1fr}.explain-side{border-left:0;border-top:1px solid var(--line)}.two{gap:14px}.rules{font-size:14px}}@media(max-width:600px){.wrap{padding:0 17px}.top .muted{display:none}header{grid-template-columns:1fr;padding-top:35px;gap:24px}h1{letter-spacing:-1.5px}.hero{padding:22px}.two{grid-template-columns:1fr}h2{font-size:27px}.card{padding:19px}.nav{gap:5px}.nav a{padding:7px 10px}.table-side,.explain-side,.lab-top{padding:16px}.lab-bottom{padding:16px}.rules{grid-template-columns:1fr}.controls label{width:100%}.controls .btn{padding:9px 12px}section{padding-top:32px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{.nav,.controls,.presets,.lab-bottom,.skip{display:none}body{background:white;font-size:11pt}.wrap{max-width:none;padding:0}header{padding:20px 0}.hero{background:#eee;color:var(--ink)}.hero p,.hero small,.hero .eyebrow{color:var(--ink)}h1{font-size:36px}section{break-before:auto}.card,.quiz{break-inside:avoid}.lab-body{display:block}.explain-side{border:0}.two{display:block}.two>.card{margin:10px 0}.grid{display:block}.grid>.card{margin:10px 0}}
+</style>
+<link rel="manifest" href="/cyk/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CYK">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#235b46">
+<style>
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.nav{top:env(safe-area-inset-top)}
+.install-note{margin:20px 0 0;font-size:14px}.install-note p:last-child{margin-bottom:0}
+@media(max-width:600px){.btn,.presets button,.quiz-options button,.nav a{min-height:44px}.cell{font-size:13px}.check-options label{min-height:44px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#grundlagen">Zum Lerninhalt</a>
+<div class="wrap">
+<div class="top"><div class="brand"><b>↗</b> Formale Sprachen · Lernlabor</div><span class="muted">Eine Datei · offline nutzbar · in deinem Tempo</span></div>
+<header><div><p class="eyebrow">Von Grund auf / Cocke–Younger–Kasami</p><h1>CYK.<br>Vom Zeichen zum<br><em>ganzen Wort.</em></h1><p class="lead">Kann eine Grammatik ein bestimmtes Wort erzeugen? Baue die Antwort aus kleinen, sicheren Antworten zusammen.</p><a class="btn primary" href="#grundlagen">Mit den Grundlagen starten ↓</a> <a class="btn" href="#labor">Zum Ausprobieren</a></div><aside class="hero"><p class="eyebrow">Die Idee in einem Bild</p><div class="hero-tree"><b>S</b><br><span class="dim">↙ &nbsp; ↘</span><br>A &nbsp;&nbsp; D<br><span class="dim">a &nbsp; ↙ ↘</span><br>&nbsp;&nbsp; F &nbsp; A<br><span class="dim">&nbsp; ↙ ↘ &nbsp; a</span><br>&nbsp; B &nbsp; B<br><span class="dim">&nbsp; b &nbsp; b</span></div><small>Ein möglicher Baum für <strong>abba</strong>.</small><p style="margin:16px 0 0">CYK arbeitet von den Zeichen nach oben: erst a und b, dann bb, dann bba, schließlich abba.</p></aside></header>
+<nav class="nav" aria-label="Lernweg"><a href="#grundlagen">01 Grundlagen</a><a href="#warum">02 Das Warum</a><a href="#labor">03 Selber sehen</a><a href="#begruendung">04 Begründen</a><a href="#ueben">05 Selber lösen</a><a href="#merkzettel">06 Merkzettel</a></nav>
+<main>
+<aside class="card install-note" aria-label="Unterwegs lernen">
+<strong>Als iPhone-App nutzen</strong>
+<p>In Safari: Teilen → Zum Home-Bildschirm → als Web-App öffnen → Hinzufügen.</p>
+<p id="offline-status" role="status">Offline-Speicherung wird vorbereitet …</p>
+</aside>
+<section id="grundlagen"><p class="eyebrow">01 / Das brauchst du vorher</p><h2>Eine Grammatik ist ein Bauplan für Wörter.</h2><p class="intro">„Wort“ bedeutet hier einfach eine endliche Zeichenfolge, zum Beispiel <code>abba</code>. Es muss kein Wort aus einer natürlichen Sprache sein.</p>
+<div class="grid"><article class="card"><span class="number">01 — BAUSTEINE</span><h3>Terminale & Nichtterminale</h3><p><strong>Terminale</strong> sind die fertigen Zeichen: hier <code>a</code> und <code>b</code>. Die Menge aller erlaubten Zeichen heißt Alphabet <strong>Σ</strong>.</p><p><strong>Nichtterminale</strong> sind ersetzbare Bausteine: hier <code>S, A, B, D, E, F</code>. Ihre Menge heißt <strong>N</strong>. <strong>S</strong> ist das Startsymbol.</p></article><article class="card"><span class="number">02 — BAUREGELN</span><h3>Produktionen & Ableitungen</h3><p>Die Regel <code>A → a</code> erlaubt, A durch a zu ersetzen. Bei <code>S → AA</code> wird S durch zwei A ersetzt. Alle Regeln zusammen bilden <strong>P</strong>.</p><p><code>S ⇒ AA ⇒ aA ⇒ aa</code><br>Das ist eine <strong>Ableitung</strong>. <code>⇒*</code> bedeutet: in null oder mehr Schritten ableitbar.</p></article><article class="card"><span class="number">03 — DIE FRAGE</span><h3>Gehört das Wort dazu?</h3><p><strong>L(G)</strong> ist die Menge aller fertigen Wörter, die die Grammatik G aus S erzeugen kann.</p><p><code>abba ∈ L(G)?</code> heißt: „Gibt es eine Ableitung von S nach abba?“ Dieses Entscheidungsproblem heißt <strong>Wortproblem</strong>.</p></article></div>
+<div class="callout"><strong>Erzeugen und Prüfen sind zwei Blickrichtungen.</strong><br>Die Grammatik sagt: „Von S aus darfst du so bauen.“ CYK fragt: „Für dieses feste Wort: Welche Bausteine können seine einzelnen Abschnitte erzeugen?“ Regeln werden dabei nicht umgedreht; wir suchen nach passenden linken Regelseiten.</div>
+<div class="two"><article class="card"><h3>Die Grammatik aus deinem Skript</h3><p class="tiny">PDF S. 8 und 11 · G = (N, Σ, P, S)</p><div class="rules"><div>S → ε | AA | BB | AD | BE</div><div>F → AA | BB | AD | BE</div><div>A → a</div><div>B → b</div><div>D → FA</div><div>E → FB</div></div><p class="tiny" style="margin-top:15px">Der Strich | trennt alternative Regeln. ε ist das leere Wort, also eine Zeichenfolge der Länge 0.</p><details><summary>Was für Wörter entstehen hier?</summary><p>S erzeugt genau die Palindrome gerader Länge über {a, b}, einschließlich ε. Ein Palindrom liest sich vorwärts und rückwärts gleich: aa, bb, abba, baab …</p><p>AA und BB bilden den Kern. AD erzeugt über D → FA eine äußere a…a-Schicht; BE über E → FB eine b…b-Schicht. F kann diese Schichten wiederholen. CYK selbst braucht diese Einsicht nicht: Es arbeitet nur mit den Regeln.</p></details></article><article class="card"><h3>Warum gerade diese Regelformen?</h3><p>CYK setzt eine Grammatik in <strong>Chomsky-Normalform (CNF)</strong> voraus:</p><p><code>X → a</code>: genau ein Terminal.<br><code>X → YZ</code>: genau zwei Nichtterminale.</p><p>Optional ist <code>S → ε</code> erlaubt; dafür kommt S auf keiner rechten Regelseite vor. So ist die Skriptgrammatik aufgebaut.</p><details><summary>Und wenn meine Grammatik anders aussieht?</summary><p>Dann zuerst in CNF umformen. Beispielsweise wird X → aB durch X → TB und T → a ersetzt, wobei T neu ist. Aus X → ABC wird X → AY und Y → BC mit neuem Y.</p><p>Außerdem müssen ε-Regeln außerhalb der Startausnahme und einfache Regeln wie X → Y geeignet beseitigt werden. Dabei bleiben die erzeugten Wörter erhalten. Das ist eine eigene Vorbereitung; der Simulator unten verwendet die bereits passende Skriptgrammatik.</p></details></article></div></section>
+<section id="warum"><p class="eyebrow">02 / Warum die Idee funktioniert</p><h2>Eine große Frage. Viele kleine Antworten.</h2><p class="intro">Alle Ableitungen blind durchzuprobieren kann sich immer weiter verzweigen. CYK speichert stattdessen für jeden zusammenhängenden Abschnitt des Wortes einmal, welche Nichtterminale ihn erzeugen können. Das heißt <strong>dynamische Programmierung</strong>.</p>
+<div class="two"><article class="card"><h3>Eine Zelle ist eine präzise Aussage.</h3><p>Nummeriere <code>abba</code> ab 1: a₁ b₂ b₃ a₄.<br><strong>w<sub>i,j</sub></strong> ist der Abschnitt von Position i bis j, inklusive beider Grenzen. Also w<sub>2,4</sub> = <code>bba</code>.</p><div class="formula">M<sub>i,j</sub> = {X | X ⇒* w<sub>i,j</sub>}</div><p><strong>M<sub>2,3</sub> = {F, S}</strong> sagt: Sowohl F als auch S können <code>bb</code> erzeugen. In der Zelle stehen Nichtterminale, keine Terminale und keine vollständigen Ableitungen.</p><p><strong>∅</strong> bedeutet: Kein Nichtterminal erzeugt genau diesen Abschnitt. <strong>?</strong> im Labor bedeutet dagegen: noch nicht untersucht.</p></article><article class="card"><h3>Zwei Kinder ergeben einen Elternknoten.</h3><p>Wenn X mit X → YZ beginnt, muss Y den linken Teil und Z den rechten Teil erzeugen. Beide Teile sind nicht leer und kürzer als das ganze Teilwort.</p><div class="formula"><span class="left-text">Y ⇒* links</span> + <span class="right-text">Z ⇒* rechts</span> + X → YZ</div><p>Dann gilt X ⇒* links·rechts. <strong>Deshalb genügt es, zwei schon bekannte Zellen zu kombinieren.</strong></p><p>Bei <code>abba</code> gibt es genau drei Schnittstellen:<br><code>a | bba</code>, <code>ab | ba</code>, <code>abb | a</code>.<br>Du musst alle prüfen. Die Reihenfolge links/rechts bleibt erhalten.</p></article></div>
+<div class="callout"><strong>Der Aha-Schritt: a | bba.</strong><br>A erzeugt a. D erzeugt bba, denn D ⇒ FA ⇒ BBA ⇒ bbA ⇒ bba. Mit S → AD folgt: S erzeugt abba. Auch F → AD passt, deshalb steht oben <strong>{F, S}</strong>.</div>
+<div class="grid"><article class="card"><span class="number">SCHRITT 1</span><h3>Mit einem Zeichen starten</h3><p>Für jedes Zeichen alle Regeln X → Zeichen suchen. Aus A → a wird {A}, aus B → b wird {B}. Das ist die Hauptdiagonale.</p></article><article class="card"><span class="number">SCHRITT 2</span><h3>Längere Abschnitte bauen</h3><p>Erst Länge 2, dann 3, dann 4 … Für jeden Abschnitt alle Schnitte und passenden Regeln prüfen. Treffer als Menge sammeln; nichts überschreiben.</p></article><article class="card"><span class="number">SCHRITT 3</span><h3>Nach dem Startsymbol fragen</h3><p>Am Ende zählt nur: <strong>S ∈ M<sub>1,n</sub>?</strong> Eine nicht leere Zelle reicht nicht aus. Bei bba steht zum Beispiel {D} oben: Das Wort wird trotzdem abgelehnt.</p></article></div></section>
+<section id="labor"><p class="eyebrow">03 / Das Labor</p><h2>Sieh jeder Entscheidung beim Entstehen zu.</h2><p class="intro">Starte mit <code>abba</code>. Ein Schritt untersucht ein einzelnes Zeichen oder eine Schnittstelle. Die Tabelle zeigt den aktuellen Wissensstand. Klicke eine fertige Zelle an, um ihre vollständige Begründung zu lesen.</p>
+<div class="lab"><div class="lab-top"><form id="word-form" class="controls"><label for="word"><strong>Dein Wort</strong></label><input id="word" value="abba" maxlength="8" spellcheck="false" autocomplete="off" aria-describedby="input-help input-error"><button class="btn primary" type="submit">Neu starten</button><span id="input-help" class="tiny">a und b · höchstens 8 Zeichen · leeres Feld = ε</span></form><div class="presets" aria-label="Beispielwörter"><button type="button" data-word="abba">abba · Skriptbeispiel</button><button type="button" data-word="bba">bba · nur D?</button><button type="button" data-word="abab">abab · Gegenbeispiel</button><button type="button" data-word="baab">baab · zum Üben</button><button type="button" data-word="">ε · leeres Wort</button></div><p id="input-error" class="error" role="alert"></p></div>
+<div class="lab-body"><div class="table-side"><p class="eyebrow" id="table-title">Die CYK-Tabelle</p><p class="tiny">Zeile i = Startposition · Spalte j = Endposition.<br>Die Antwort für das ganze Wort steht rechts oben.</p><div id="table" class="table-scroll"></div><div class="legend"><span>aktuell</span><span>linkes Teilstück</span><span>rechtes Teilstück</span></div><p id="result" role="status"></p></div><aside class="explain-side" id="explanation" aria-live="polite" aria-atomic="true"></aside></div>
+<div class="lab-bottom"><progress id="progress" max="1" value="0" aria-label="Berechnungsfortschritt"></progress><p id="step-label" class="caption"></p><div class="controls"><button class="btn" id="prev" type="button">← Zurück</button><button class="btn primary" id="next" type="button">Nächster Schritt →</button><button class="btn" id="finish" type="button">Alles berechnen</button><button class="btn" id="reset" type="button">Zurücksetzen</button></div></div></div>
+<details><summary>So passt diese Ansicht zu den Dreiecken im Skript.</summary><p>Das Dreieck auf PDF S. 8 und das quadratische Array auf S. 11 enthalten dieselben Mengen. Im Dreieck stehen die einzelnen Zeichen unten. Im Array stehen sie auf der Hauptdiagonale. Die nächste Diagonale nach rechts oben enthält die Abschnitte der Länge 2. Links unterhalb der Hauptdiagonale gibt es keine Zellen, weil dort i &gt; j wäre.</p></details></section>
+<section id="begruendung"><p class="eyebrow">04 / Nicht nur nach Rezept</p><h2>Warum übersieht CYK nichts?</h2><div class="two"><article class="card"><h3>Es trägt nichts Falsches ein.</h3><p>Bei einem Zeichen ist jeder Eintrag durch eine tatsächliche Regel X → a begründet.</p><p>Bei längeren Abschnitten wird X nur aufgenommen, wenn eine Regel X → YZ existiert und Y und Z die passenden Teilstücke erzeugen. Zusammengesetzt ergibt das wirklich eine Ableitung des betrachteten Abschnitts.</p><p><strong>Jeder Eintrag hat also einen gültigen Ableitungsbaum.</strong> Das ist die Korrektheit der Einträge.</p></article><article class="card"><h3>Es findet jede mögliche Ableitung.</h3><p>Jeder Ableitungsbaum für mehr als ein Zeichen beginnt in CNF mit X → YZ. Seine beiden Teilbäume erzeugen einen linken und einen rechten Abschnitt.</p><p>CYK prüft genau diese Schnittstelle mit. Die kürzeren Abschnitte sind bereits vollständig bearbeitet. Deshalb findet es auch X.</p><p><strong>Kein möglicher Eintrag fehlt.</strong> Das ist die Vollständigkeit.</p></article></div><div class="callout"><strong>Das ist eine Induktion über die Teilwortlänge.</strong><br>Basis: Länge 1 stimmt wegen der Terminalregeln. Annahme: Alle kürzeren Abschnitte stimmen. Schritt: Die Regeln X → YZ verbinden genau die richtigen kürzeren Abschnitte. Damit gilt für alle Zellen X ∈ M<sub>i,j</sub> genau dann, wenn X ⇒* w<sub>i,j</sub>. Setze X = S, i = 1 und j = n ein: Das liefert das Endkriterium. (PDF S. 7.)</div>
+<div class="two"><article class="card"><h3>Warum endet das Verfahren?</h3><p>Ein Wort mit n Zeichen hat n(n + 1)/2 zusammenhängende, nicht leere Abschnitte. Jeder wird einmal bearbeitet. Ein Abschnitt der Länge ℓ hat ℓ − 1 Schnitte.</p><p>Die Abhängigkeiten gehen immer zu <strong>kürzeren</strong> Abschnitten. Daher gibt es beim Ausfüllen keinen Kreis und keine unendliche Suche.</p></article><article class="card"><h3>Was kostet das?</h3><p><strong>Speicher: O(n²)</strong> bei fester Grammatik: quadratisch viele Mengen, jede enthält höchstens |N| Nichtterminale.</p><p><strong>Zeit: O(n³)</strong> bei fester Grammatik: O(n²) Abschnitte × bis zu O(n) Schnittstellen.</p><p class="tiny">Wenn die Grammatik mitwächst: O(n²·|N|) Speicher und bei Prüfung aller binären Regeln pro Schnitt O(n³·|P₂| + n·|P₁|) Zeit. P₂ sind binäre Regeln, P₁ Terminalregeln; Mengenzugriff wird als konstant angenommen.</p></article></div></section>
+<section id="ueben"><p class="eyebrow">05 / Vom Mitlesen zum Selberkönnen</p><h2>Jetzt übernimmst du.</h2><p class="intro">Versuche es erst ohne die Tabelle. Die Rückmeldung erklärt dir den Grund, auch wenn deine Antwort noch nicht stimmt.</p>
+<div class="two"><article class="card quiz" id="quiz-meaning"><span class="number">01 — BEDEUTUNG</span><h3>Was heißt D ∈ M₂,₄ bei abba?</h3><div class="quiz-options"><button data-answer="0" aria-pressed="false">D erzeugt bba.</button><button data-answer="1" aria-pressed="false">D erzeugt das ganze Wort.</button><button data-answer="2" aria-pressed="false">bba gehört sicher zu L(G).</button></div><p class="feedback" role="status"></p></article><article class="card quiz" id="quiz-accept"><span class="number">02 — ENTSCHEIDUNG</span><h3>Oben steht {D}. Akzeptieren?</h3><div class="quiz-options"><button data-answer="0" aria-pressed="false">Ja, die Menge ist nicht leer.</button><button data-answer="1" aria-pressed="false">Nein, S fehlt.</button></div><p class="feedback" role="status"></p></article></div>
+<article class="card quiz"><span class="number">03 — MENGEN SELBST BERECHNEN</span><h3 id="exercise-title"></h3><p id="exercise-help"></p><form id="exercise-form"><div class="check-options" id="exercise-options"></div><button class="btn primary" type="submit">Antwort prüfen</button> <button class="btn" type="button" id="exercise-next">Nächste Aufgabe →</button></form><p class="feedback" id="exercise-feedback" role="status"></p><p class="tiny">Mehrere Antworten sind möglich. Für ∅ lässt du alle Kästchen leer.</p></article>
+<div class="two"><article class="card quiz" id="quiz-epsilon"><span class="number">04 — SONDERFALL</span><h3>Was passiert beim leeren Wort ε?</h3><div class="quiz-options"><button data-answer="0" aria-pressed="false">Immer ablehnen.</button><button data-answer="1" aria-pressed="false">S → ε prüfen.</button><button data-answer="2" aria-pressed="false">M₁,₀ ausfüllen.</button></div><p class="feedback" role="status"></p></article><article class="card"><span class="number">05 — TRANSFER</span><h3>Ein neues Wort: baab</h3><p>Zeichne die Tabelle selbst. Begründe jeden Eintrag durch eine Regel und eine Schnittstelle. Entscheide erst am Schluss über die Zugehörigkeit.</p><details><summary>Kontrolllösung erst nach deinem Versuch</summary><p>Länge 1: {B}, {A}, {A}, {B}.<br>Länge 2: ∅, {F, S}, ∅.<br>Länge 3: ∅, {E}.<br>Länge 4: {F, S}.</p><p>Für aab: F erzeugt aa, B erzeugt b, und E → FB. Für baab: B erzeugt b, E erzeugt aab, und S → BE bzw. F → BE. S ist enthalten: akzeptiert.</p></details></article></div></section>
+<section id="merkzettel"><p class="eyebrow">06 / Zum Wiederholen</p><h2>Dein Rezept, jetzt mit Begründung.</h2><div class="two"><article class="card"><h3>CYK in lesbarem Pseudocode</h3><pre>Voraussetzung: G in Chomsky-Normalform
+n = Länge(w)
+wenn n = 0:
+    liefere, ob S → ε eine Regel ist
+
+für i = 1 bis n:
+    M[i,i] = {X | X → w[i] ist eine Regel}
+
+für länge = 2 bis n:
+    für i = 1 bis n − länge + 1:
+        j = i + länge − 1
+        M[i,j] = ∅
+        für k = i bis j − 1:
+            für jede Regel X → YZ:
+                wenn Y ∈ M[i,k]
+                und Z ∈ M[k+1,j]:
+                    füge X zu M[i,j] hinzu
+
+liefere, ob S ∈ M[1,n]</pre></article><article class="card"><h3>Die fünf häufigsten Stolperstellen</h3><ol class="steps"><li><strong>Nur einen Schnitt prüfen.</strong> Ein Abschnitt der Länge 4 hat drei mögliche Schnitte, nicht nur die Mitte.</li><li><strong>Links und rechts vertauschen.</strong> X → YZ verlangt Y links und Z rechts.</li><li><strong>Nur einen Treffer notieren.</strong> Sowohl F → BB als auch S → BB passen zu bb: also {F, S}.</li><li><strong>∅ mit ε verwechseln.</strong> ∅ ist eine leere Menge von Nichtterminalen. ε ist ein Wort mit null Zeichen.</li><li><strong>„Nicht leer“ als Erfolg werten.</strong> Nur das Startsymbol in der Zelle für das ganze Wort entscheidet.</li></ol><div class="callout"><strong>Eine Zelle = eine Frage:</strong><br>„Welche Nichtterminale erzeugen genau diesen Abschnitt?“</div><p class="tiny">Hinweis zur Skriptnotation: Mᵢ,ⱼ in der Erklärung und Nᵢ,ⱼ im Pseudocode auf S. 12 meinen dieselben Nichtterminalmengen. Das Array A[i,j] auf S. 11 speichert sie.</p></article></div>
+<details class="source"><summary>Quelle und Einordnung</summary><p>Grundlage: deine Datei <strong>CYK-Algorithmus.pdf</strong>, 13 PDF-Seiten. Notation und Ablauf: S. 1–6. Begründung per Induktion: S. 7. Grammatik und Beispiel abba: S. 8 und 11. Datenstruktur und Speicher: S. 9–11. Pseudocode: S. 12–13.</p><p>Der ε-Sonderfall steht auf S. 1 und wird auf S. 13 als fehlender Teil des abgedruckten Pseudocodes genannt. Er ist hier im Simulator und im Pseudocode berücksichtigt. Die Einführung, Übungen, Erklärung der Sprache und Zeitabschätzung sind didaktische Ergänzungen. Sämtliche Seitenzahlen zählen PDF-Seiten ab 1.</p></details></section>
+</main><footer>CYK verstehen · Auf Basis deiner Unterlagen · Keine Installation, keine externen Bibliotheken, keine Internetverbindung nötig. Eingaben und Übungen gelten für die aktuelle Sitzung.</footer>
+</div>
+<script>
+'use strict';
+const grammar = {
+  terminals: [['A','a'],['B','b']],
+  binary: [['S','A','A'],['S','B','B'],['S','A','D'],['S','B','E'],['F','A','A'],['F','B','B'],['F','A','D'],['F','B','E'],['D','F','A'],['E','F','B']],
+  epsilon: true
+};
+const $ = id => document.getElementById(id);
+const setText = values => values.length ? '{' + [...values].sort().join(', ') + '}' : '∅';
+const cellName = (i,j) => `M<sub>${i+1},${j+1}</sub>`;
+function solve(word) {
+  const n = word.length;
+  const matrix = Array.from({length:n}, () => Array.from({length:n}, () => []));
+  const events = [];
+  if (!n) return {matrix,events:[{type:'epsilon'}]};
+  for (let i=0;i<n;i++) {
+    matrix[i][i] = grammar.terminals.filter(r=>r[1]===word[i]).map(r=>r[0]);
+    events.push({type:'terminal',i,j:i,added:[...matrix[i][i]],values:[...matrix[i][i]],done:true});
+  }
+  for (let len=2;len<=n;len++) for (let i=0;i<=n-len;i++) {
+    const j=i+len-1;
+    for (let k=i;k<j;k++) {
+      const left=matrix[i][k],right=matrix[k+1][j];
+      const matches=grammar.binary.filter(([,b,c])=>left.includes(b)&&right.includes(c));
+      const added=[...new Set(matches.map(r=>r[0]))].filter(a=>!matrix[i][j].includes(a));
+      matrix[i][j].push(...added);
+      events.push({type:'split',i,j,k,left:[...left],right:[...right],matches,added,values:[...matrix[i][j]],done:k===j-1});
+    }
+  }
+  return {matrix,events};
+}
+let word='abba', computation=solve(word), cursor=0, inspected=null;
+function explanationFor(event) {
+  if(event.type==='epsilon') return '<span class="tag">Sonderfall · n = 0</span><h3 style="margin-top:14px">Kein Zeichen, keine Tabelle.</h3><p>Für ε prüfen wir direkt, ob die Regel S → ε existiert. In dieser Grammatik existiert sie.</p><div class="match"><strong>S → ε ✓</strong></div><p>Also gehört das leere Wort zu L(G). Es wird keine Zelle M₁,₀ angelegt.</p>';
+  const {i,j}=event;
+  if(event.type==='terminal') return `<span class="tag">Basis · Länge 1</span><h3 style="margin-top:14px">${cellName(i,j)}: Wer erzeugt „${word[i]}“?</h3><div class="split">${word[i]}</div><p>Wir suchen jede Terminalregel X → ${word[i]}.</p><div class="match">${event.added.map(a=>`${a} → ${word[i]}`).join('<br>') || 'Keine passende Regel.'}</div><p><strong>${cellName(i,j)} = ${setText(event.values)}</strong>. Diese Zelle ist fertig.</p>`;
+  const rules=event.matches.length?event.matches.map(([a,b,c])=>`${a} → ${b}${c}: ${b} links und ${c} rechts vorhanden ✓`).join('<br>'):'Keine passende binäre Regel.';
+  const whyEmpty=(!event.left.length||!event.right.length)?'Mindestens eine Teilmenge ist leer. Deshalb kann keine Regel beide Teilstücke verbinden.': 'Wir prüfen jede Regel X → YZ: Ist Y in der linken Menge und Z in der rechten?';
+  return `<span class="tag">Länge ${j-i+1} · Schnitt ${event.k-i+1} von ${j-i}</span><h3 style="margin-top:14px">${cellName(i,j)}: „${word.slice(i,j+1)}“</h3><div class="split"><span class="left-text">${word.slice(i,event.k+1)}</span><span class="bar">|</span><span class="right-text">${word.slice(event.k+1,j+1)}</span></div><p class="left-text">Links: ${cellName(i,event.k)} = ${setText(event.left)}</p><p class="right-text">Rechts: ${cellName(event.k+1,j)} = ${setText(event.right)}</p><p>${whyEmpty}</p><div class="match">${rules}</div><p>${event.added.length?'Neu dazu: <strong>'+setText(event.added)+'</strong>.':'Keine neuen Nichtterminale.'} Treffer früherer Schnitte bleiben erhalten.</p><p><strong>${event.done?'Endgültig':'Bisher'}: ${cellName(i,j)} = ${setText(event.values)}</strong>${event.done?'. Alle Schnitte dieser Zelle sind geprüft.':'. Weitere Schnitte folgen.'}</p>`;
+}
+function derivation(symbol,i,j) {
+  if(i===j) return [symbol,word[i]];
+  for(let k=i;k<j;k++) for(const [a,b,c] of grammar.binary) {
+    if(a===symbol&&computation.matrix[i][k].includes(b)&&computation.matrix[k+1][j].includes(c)) {
+      const left=derivation(b,i,k),right=derivation(c,k+1,j);
+      return [symbol,...left.map(s=>s+c),...right.slice(1).map(s=>word.slice(i,k+1)+s)];
+    }
+  }
+  return [];
+}
+function render() {
+  const n=word.length,events=computation.events,current=events[cursor-1];
+  const visible=Array.from({length:n},()=>Array(n).fill(null));
+  for(const event of events.slice(0,cursor)) if(event.type!=='epsilon') visible[event.i][event.j]=event;
+  $('table-title').textContent=`Aktuelles Wort: ${word||'ε'} · Länge ${n}`;
+  if(!n) $('table').innerHTML='<div class="callout">ε enthält keine Zeichen.<br>Hier genügt die Prüfung der Startregel.</div>';
+  else {
+    let html='<table class="matrix" style="min-width:'+Math.max(320,n*72+45)+'px" aria-label="CYK-Tabelle: Zeile Start, Spalte Ende"><thead><tr><th scope="col">i ∖ j</th>';
+    for(let j=0;j<n;j++) html+=`<th scope="col">${j+1}<br>${word[j]}</th>`;
+    html+='</tr></thead><tbody>';
+    for(let i=0;i<n;i++) {
+      html+=`<tr><th scope="row">${i+1} ${word[i]}</th>`;
+      for(let j=0;j<n;j++) {
+        if(j<i){html+='<td></td>';continue;}
+        const event=visible[i][j];
+        let cls=event?'':' pending';
+        if(!inspected&&current?.i===i&&current?.j===j) cls+=' current';
+        if(!inspected&&current?.type==='split') {
+          if(i===current.i&&j===current.k)cls+=' left';
+          if(i===current.k+1&&j===current.j)cls+=' right';
+        }
+        if(inspected&&inspected[0]===i&&inspected[1]===j)cls+=' selected';
+        const value=event?setText(event.values):'?';
+        html+=`<td><button type="button" class="cell${cls}" data-i="${i}" data-j="${j}" ${!event?.done?'disabled':''} aria-label="M ${i+1}, ${j+1}, Teilwort ${word.slice(i,j+1)}: ${event?(event.done?'fertig ':'bisher ')+value:'noch nicht berechnet'}"><small>${word.slice(i,j+1)}</small>${value}${event&&!event.done?' …':''}</button></td>`;
+      }
+      html+='</tr>';
+    }
+    $('table').innerHTML=html+'</tbody></table>';
+  }
+  if(inspected) {
+    const [i,j]=inspected;
+    $('explanation').innerHTML=`<p class="eyebrow">Zelle nachlesen</p><h3>${cellName(i,j)} = ${setText(computation.matrix[i][j])}</h3><p>Alle Gründe für „${word.slice(i,j+1)}“:</p>`+events.filter(e=>e.i===i&&e.j===j).map(e=>`<div style="border-top:1px solid var(--line);margin-top:18px;padding-top:18px">${explanationFor(e)}</div>`).join('');
+  } else if(current) $('explanation').innerHTML=explanationFor(current);
+  else $('explanation').innerHTML='<span class="tag">Bereit zum Start</span><h3 style="margin-top:14px">Noch ist jede Zelle offen.</h3><p>Klicke auf „Nächster Schritt“. Zuerst untersuchen wir jedes einzelne Zeichen. Dann setzen wir immer längere Abschnitte zusammen.</p><p><strong>Vorhersage:</strong> Welches Nichtterminal kann das erste Zeichen erzeugen?</p><p class="tiny">Die vollständigen Regeln findest du oben bei den Grundlagen. Grün markiert die aktuelle Zelle; Blau und Orange markieren ihre beiden Quellen.</p>';
+  $('result').className='';$('result').innerHTML='';
+  if(cursor===events.length) {
+    const accepted=n?computation.matrix[0][n-1].includes('S'):grammar.epsilon;
+    $('result').className='result'+(accepted?'':' no');
+    $('result').innerHTML=`<strong>${accepted?'Ja':'Nein'}: ${word||'ε'} ${accepted?'∈':'∉'} L(G).</strong><br>`+(n?`S ${accepted?'ist':'ist nicht'} in ${cellName(0,n-1)} = ${setText(computation.matrix[0][n-1])} enthalten.`:'Die Regel S → ε ist vorhanden.');
+    if(accepted&&n) $('result').innerHTML+=`<details><summary>Eine passende Ableitung anzeigen</summary><p class="trace">${derivation('S',0,n-1).join(' ⇒ ')}</p><p class="tiny">Aus den gefundenen Regeln rekonstruiert. Die Mengen allein zählen keine Ableitungen.</p></details>`;
+  }
+  $('progress').max=events.length;$('progress').value=cursor;
+  $('step-label').textContent=`${cursor} von ${events.length} Schritten · ${cursor===events.length?'Berechnung abgeschlossen':inspected?'Fertige Zelle ausgewählt; mit Weiter setzt du die Berechnung fort':'Ein Schritt = ein Zeichen oder ein Schnitt'}`;
+  $('prev').disabled=cursor===0;$('next').disabled=cursor===events.length;$('finish').disabled=cursor===events.length;$('reset').disabled=cursor===0;
+}
+function start(value) {
+  if(!/^[ab]{0,8}$/.test(value)) {
+    $('input-error').textContent='Bitte nur a und b eingeben (maximal 8 Zeichen). Für ε das Feld ganz leeren. Die bisherige Berechnung bleibt bestehen.';
+    $('word').setAttribute('aria-invalid','true');return;
+  }
+  $('input-error').textContent='';$('word').removeAttribute('aria-invalid');$('word').value=value;
+  word=value;computation=solve(word);cursor=0;inspected=null;render();
+}
+$('word-form').addEventListener('submit',e=>{e.preventDefault();start($('word').value);});
+document.querySelectorAll('[data-word]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.word)));
+$('next').onclick=()=>{cursor=Math.min(cursor+1,computation.events.length);inspected=null;render();};
+$('prev').onclick=()=>{cursor=Math.max(cursor-1,0);inspected=null;render();};
+$('finish').onclick=()=>{cursor=computation.events.length;inspected=null;render();};
+$('reset').onclick=()=>{cursor=0;inspected=null;render();};
+$('table').addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(b&&!b.disabled){inspected=[Number(b.dataset.i),Number(b.dataset.j)];render();}});
+const quizzes={
+  'quiz-meaning':{correct:0,text:'M₂,₄ bezieht sich auf die Positionen 2 bis 4, also bba. D kann diesen Abschnitt erzeugen. Zur Zugehörigkeit zu L(G) müsste S das betreffende ganze Wort erzeugen.'},
+  'quiz-accept':{correct:1,text:'Akzeptiert wird nur, wenn S in der Zelle für das ganze Wort steht. D kann bba erzeugen, aber S kann es in dieser Grammatik nicht.'},
+  'quiz-epsilon':{correct:1,text:'In der hier verwendeten CNF-Konvention entscheidet für ε die Regel S → ε. Sie ist vorhanden, also lautet die Antwort ja. Eine Tabelle mit null Zeichen ist dafür unnötig.'}
+};
+for(const [id,q] of Object.entries(quizzes)) $(id).querySelectorAll('[data-answer]').forEach(b=>b.onclick=()=>{
+  $(id).querySelectorAll('[data-answer]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  $(id).querySelector('.feedback').textContent=(Number(b.dataset.answer)===q.correct?'Richtig. ':'Noch nicht. ')+q.text;
+});
+const exercises=[
+  {title:'Welche Nichtterminale erzeugen bb?',help:'Links {B}, rechts {B}. Suche alle passenden Regeln.',answer:['F','S'],why:'S → BB und F → BB passen beide. Deshalb ist die gesuchte Menge {F, S}.'},
+  {title:'Welche Nichtterminale erzeugen bba?',help:'Prüfe b | ba und bb | a. Für ba gilt ∅, für bb gilt {F, S}.',answer:['D'],why:'b | ba liefert nichts. Bei bb | a passen F links und A rechts zur Regel D → FA. Eine Regel mit SA auf der rechten Seite gibt es nicht. Ergebnis: {D}.'},
+  {title:'Welche Nichtterminale erzeugen ab?',help:'Der einzige Schnitt ist a | b. Links {A}, rechts {B}.',answer:[],why:'Es gibt keine Regel X → AB. Deshalb ist die Menge leer: ∅. Leere Zellen sind gültige Ergebnisse.'},
+  {title:'Welche Nichtterminale erzeugen abba?',help:'Prüfe a | bba, ab | ba und abb | a. Für bba gilt {D}; ab, ba und abb haben leere Mengen.',answer:['F','S'],why:'Nur a | bba liefert Treffer: S → AD und F → AD. Die anderen Schnitte liefern nichts. Ergebnis: {F, S}; S ist dabei, also wird abba akzeptiert.'}
+];
+let exerciseIndex=0;
+function renderExercise(){const e=exercises[exerciseIndex];$('exercise-title').textContent=`${exerciseIndex+1} / ${exercises.length} · ${e.title}`;$('exercise-help').textContent=e.help;$('exercise-options').innerHTML=['A','B','D','E','F','S'].map(a=>`<label><input type="checkbox" name="symbol" value="${a}">${a}</label>`).join('');$('exercise-feedback').textContent='';$('exercise-next').textContent=exerciseIndex===exercises.length-1?'Noch einmal üben ↻':'Nächste Aufgabe →';}
+$('exercise-form').onsubmit=e=>{e.preventDefault();const task=exercises[exerciseIndex],chosen=[...$('exercise-form').querySelectorAll('input:checked')].map(x=>x.value);const correct=chosen.length===task.answer.length&&chosen.every(x=>task.answer.includes(x));$('exercise-feedback').textContent=(correct?'Richtig. ':'Noch nicht. ')+task.why;};
+$('exercise-next').onclick=()=>{exerciseIndex=(exerciseIndex+1)%exercises.length;renderExercise();};
+render();renderExercise();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/cyk/sw.js', {scope:'/cyk/', updateViaCache:'none'})
+    .then(() => navigator.serviceWorker.ready)
+    .then(() => {
+      document.getElementById('offline-status').textContent = '✓ Für offline gespeichert. Öffne die App nach dem Hinzufügen einmal mit Internet, bis diese Meldung erscheint.';
+    })
+    .catch(() => {
+      document.getElementById('offline-status').textContent = 'Offline-Speicherung hat nicht geklappt. Die Seite funktioniert online; versuche es später erneut.';
+    });
+} else {
+  document.getElementById('offline-status').textContent = 'Dieser Browser unterstützt die Offline-Speicherung nicht. Die Seite funktioniert online.';
+}
+</script>
+</body>
+</html>

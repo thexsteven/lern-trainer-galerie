@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/build-learning-labs.mjs && vite",
+    "build": "node scripts/build-cyk.mjs && node scripts/build-compiler-parser.mjs && node scripts/build-learning-labs.mjs && vite build",
+    "test": "node --test src/catalog.test.js src/personalStore.test.js scripts/build-learning-labs.test.mjs && vitest run src/App.test.jsx --environment jsdom --pool=forks",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,7 +14,12 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "jsdom": "^25.0.1",
+    "vite": "^5.4.2",
+    "vitest": "^2.1.9"
   }
 }

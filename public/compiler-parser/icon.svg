@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Parsing verstehen">
+  <rect width="512" height="512" rx="116" fill="#101619"/>
+  <circle cx="256" cy="142" r="55" fill="#ef9e8d"/>
+  <path d="M256 197v54M256 251H139v55M256 251h117v55" fill="none" stroke="#f5f1e8" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="70" y="301" width="138" height="108" rx="35" fill="#bde6d3"/>
+  <rect x="304" y="301" width="138" height="108" rx="35" fill="#9ec9ed"/>
+  <path d="M128 329l-28 26 28 26M150 329l28 26-28 26" fill="none" stroke="#17342e" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M342 355h62M373 324v62" fill="none" stroke="#17342e" stroke-width="18" stroke-linecap="round"/>
+</svg>
