@@ -1,5 +1,5 @@
 const STORAGE_KEY = "lern-trainer-personal-v1";
-const EMPTY_STATE = { pins: [], recents: [], exams: [] };
+const EMPTY_STATE = { pins: [], recents: [], exams: [], sidebarCollapsed: false };
 
 function load(storage) {
   try {
@@ -9,6 +9,7 @@ function load(storage) {
       pins: Array.isArray(value.pins) ? value.pins : [],
       recents: Array.isArray(value.recents) ? value.recents.slice(0, 3) : [],
       exams: Array.isArray(value.exams) ? value.exams : [],
+      sidebarCollapsed: value.sidebarCollapsed === true,
     };
   } catch {
     return { ...EMPTY_STATE };
@@ -48,11 +49,13 @@ export function createPersonalStore(storage) {
       });
     },
     saveExam(exam) {
+      const existing = state.exams.find((item) => item.id === exam.id);
       const nextExam = {
         id: exam.id,
         title: exam.title.trim(),
         date: exam.date,
         itemSlugs: [...new Set(exam.itemSlugs)],
+        ...(existing?.archivedAt ? { archivedAt: existing.archivedAt } : {}),
       };
       commit({
         ...state,
@@ -62,6 +65,25 @@ export function createPersonalStore(storage) {
     },
     removeExam(id) {
       commit({ ...state, exams: state.exams.filter((exam) => exam.id !== id) });
+    },
+    archiveExam(id, archivedAt = new Date().toISOString()) {
+      commit({
+        ...state,
+        exams: state.exams.map((exam) => exam.id === id ? { ...exam, archivedAt } : exam),
+      });
+    },
+    restoreExam(id) {
+      commit({
+        ...state,
+        exams: state.exams.map((exam) => {
+          if (exam.id !== id) return exam;
+          const { archivedAt, ...restored } = exam;
+          return restored;
+        }),
+      });
+    },
+    setSidebarCollapsed(sidebarCollapsed) {
+      commit({ ...state, sidebarCollapsed: Boolean(sidebarCollapsed) });
     },
   };
 }

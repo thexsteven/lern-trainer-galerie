@@ -32,6 +32,7 @@ function routeFromPath(path) {
   const pathname = url.pathname;
   if (pathname === "/bibliothek") return { name: "library" };
   if (pathname === "/pruefungen") return { name: "exams", create: url.searchParams.has("neu") };
+  if (pathname === "/archiv") return { name: "archive" };
   const match = pathname.match(/^\/trainer\/([^/]+)\/?$/);
   if (match) return { name: "trainer", slug: decodeURIComponent(match[1]) };
   return { name: "home" };
@@ -62,6 +63,9 @@ export default function App({ storage = window.localStorage }) {
   const personal = usePersonalState(store);
   const [route, navigate] = useRoute();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navigationRequest, setNavigationRequest] = useState(null);
+  const [archivedUndo, setArchivedUndo] = useState(null);
+  const editorDirtyRef = useRef(false);
   const searchReturnFocus = useRef(null);
   const openSearch = () => {
     searchReturnFocus.current = document.activeElement;
@@ -89,13 +93,32 @@ export default function App({ storage = window.localStorage }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!archivedUndo) return undefined;
+    const timeout = window.setTimeout(() => setArchivedUndo(null), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [archivedUndo]);
+
   const openItem = (item) => {
     store.recordOpen(item.slug);
     if (item.kind === "lab") {
       window.location.assign(item.url);
       return;
     }
-    navigate(`/trainer/${item.slug}`);
+    requestNavigation(`/trainer/${item.slug}`);
+  };
+
+  const requestNavigation = (path) => {
+    if (editorDirtyRef.current) {
+      setNavigationRequest({ path });
+      return;
+    }
+    navigate(path);
+  };
+
+  const archiveExam = (exam) => {
+    store.archiveExam(exam.id);
+    setArchivedUndo(exam);
   };
 
   if (route.name === "trainer") {
@@ -104,7 +127,7 @@ export default function App({ storage = window.localStorage }) {
       <TrainerView
         item={item}
         pinned={personal.pins.includes(route.slug)}
-        onBack={() => navigate("/")}
+        onBack={() => requestNavigation("/")}
         onPin={() => item && store.togglePin(item.slug)}
       />
     );
@@ -112,8 +135,14 @@ export default function App({ storage = window.localStorage }) {
 
   return (
     <div className="app-shell">
-      <div className="app-layout" aria-hidden={searchOpen ? "true" : undefined} inert={searchOpen ? "" : undefined}>
-        <Sidebar route={route} navigate={navigate} onSearch={openSearch} />
+      <div className={`app-layout${personal.sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-hidden={searchOpen ? "true" : undefined} inert={searchOpen ? "" : undefined}>
+        <Sidebar
+          route={route}
+          navigate={requestNavigation}
+          onSearch={openSearch}
+          collapsed={personal.sidebarCollapsed}
+          onToggleCollapsed={() => store.setSidebarCollapsed(!personal.sidebarCollapsed)}
+        />
         <div className="app-main">
           <MobileHeader onSearch={openSearch} />
           <main>
@@ -121,7 +150,7 @@ export default function App({ storage = window.localStorage }) {
               <HomePage
                 catalog={catalog}
                 personal={personal}
-                navigate={navigate}
+                navigate={requestNavigation}
                 openItem={openItem}
                 togglePin={store.togglePin}
               />
@@ -140,13 +169,23 @@ export default function App({ storage = window.localStorage }) {
                 exams={personal.exams}
                 startEditing={route.create}
                 saveExam={store.saveExam}
+                archiveExam={archiveExam}
+                openItem={openItem}
+                onDirtyChange={(dirty) => { editorDirtyRef.current = dirty; }}
+                onCreated={() => window.history.replaceState({}, "", "/pruefungen")}
+              />
+            )}
+            {route.name === "archive" && (
+              <ArchivePage
+                exams={personal.exams}
+                restoreExam={store.restoreExam}
                 removeExam={store.removeExam}
                 openItem={openItem}
               />
             )}
           </main>
         </div>
-        <MobileNav route={route} navigate={navigate} />
+        <MobileNav route={route} navigate={requestNavigation} />
       </div>
       {searchOpen && (
         <SearchPalette
@@ -158,24 +197,49 @@ export default function App({ storage = window.localStorage }) {
           }}
         />
       )}
+      {navigationRequest && (
+        <ConfirmDialog
+          title="Änderungen verwerfen?"
+          copy="Deine Änderungen an dieser Prüfung wurden noch nicht gespeichert."
+          confirmLabel="Änderungen verwerfen"
+          onCancel={() => setNavigationRequest(null)}
+          onConfirm={() => {
+            const { path } = navigationRequest;
+            editorDirtyRef.current = false;
+            setNavigationRequest(null);
+            navigate(path);
+          }}
+        />
+      )}
+      {archivedUndo && (
+        <div className="undo-toast" role="status">
+          <span>„{archivedUndo.title}“ archiviert.</span>
+          <button onClick={() => { store.restoreExam(archivedUndo.id); setArchivedUndo(null); }}>Rückgängig</button>
+          <button className="toast-close" aria-label="Meldung schließen" onClick={() => setArchivedUndo(null)}>×</button>
+        </div>
+      )}
     </div>
   );
 }
 
-function Sidebar({ route, navigate, onSearch }) {
+function Sidebar({ route, navigate, onSearch, collapsed, onToggleCollapsed }) {
   return (
-    <aside className="sidebar" aria-label="Hauptnavigation">
-      <button className="brand" onClick={() => navigate("/")}>
+    <aside className={`sidebar${collapsed ? " collapsed" : ""}`} aria-label="Hauptnavigation">
+      <button className="brand" aria-label="Zur Startseite" title={collapsed ? "Start" : undefined} onClick={() => navigate("/")}>
         <span className="brand-mark">L</span>
-        <span><strong>Lern·Trainer</strong><small>Dein Study Space</small></span>
+        <span className="brand-copy"><strong>Lern·Trainer</strong><small>Dein Study Space</small></span>
       </button>
       <nav>
-        <NavButton active={route.name === "home"} label="Start" icon="⌂" onClick={() => navigate("/")} />
-        <NavButton active={route.name === "library"} label="Bibliothek" icon="▦" onClick={() => navigate("/bibliothek")} />
-        <NavButton active={route.name === "exams"} label="Prüfungen" icon="◇" onClick={() => navigate("/pruefungen")} />
+        <NavButton active={route.name === "home"} label="Start" icon="⌂" title={collapsed ? "Start" : undefined} onClick={() => navigate("/")} />
+        <NavButton active={route.name === "library"} label="Bibliothek" icon="▦" title={collapsed ? "Bibliothek" : undefined} onClick={() => navigate("/bibliothek")} />
+        <NavButton active={route.name === "exams"} label="Prüfungen" icon="◇" title={collapsed ? "Prüfungen" : undefined} onClick={() => navigate("/pruefungen")} />
+        <NavButton active={route.name === "archive"} label="Archiv" icon="▤" title={collapsed ? "Archiv" : undefined} onClick={() => navigate("/archiv")} />
       </nav>
-      <button className="search-trigger" onClick={onSearch}>
+      <button className="search-trigger" title={collapsed ? "Suchen" : undefined} aria-label="Suchen" onClick={onSearch}>
         <span>⌕</span><span>Suchen</span><kbd>⌘ K</kbd>
+      </button>
+      <button className="sidebar-toggle" aria-label={collapsed ? "Sidebar ausklappen" : "Sidebar einklappen"} title={collapsed ? "Sidebar ausklappen" : undefined} onClick={onToggleCollapsed}>
+        <span aria-hidden="true">{collapsed ? "›" : "‹"}</span><span>{collapsed ? "Ausklappen" : "Einklappen"}</span>
       </button>
       <div className="sidebar-note">
         <span className="status-dot" />
@@ -185,8 +249,8 @@ function Sidebar({ route, navigate, onSearch }) {
   );
 }
 
-function NavButton({ active, label, icon, onClick }) {
-  return <button className={`nav-button${active ? " active" : ""}`} aria-label={label} aria-current={active ? "page" : undefined} onClick={onClick}><span aria-hidden="true">{icon}</span>{label}</button>;
+function NavButton({ active, label, icon, title, onClick }) {
+  return <button className={`nav-button${active ? " active" : ""}`} aria-label={label} aria-current={active ? "page" : undefined} title={title} onClick={onClick}><span aria-hidden="true">{icon}</span><span className="nav-label">{label}</span></button>;
 }
 
 function MobileHeader({ onSearch }) {
@@ -198,12 +262,13 @@ function MobileNav({ route, navigate }) {
     <NavButton active={route.name === "home"} label="Start" icon="⌂" onClick={() => navigate("/")} />
     <NavButton active={route.name === "library"} label="Bibliothek" icon="▦" onClick={() => navigate("/bibliothek")} />
     <NavButton active={route.name === "exams"} label="Prüfungen" icon="◇" onClick={() => navigate("/pruefungen")} />
+    <NavButton active={route.name === "archive"} label="Archiv" icon="▤" onClick={() => navigate("/archiv")} />
   </nav>;
 }
 
 function HomePage({ catalog, personal, navigate, openItem, togglePin }) {
   const nextExam = personal.exams
-    .filter((exam) => new Date(`${exam.date}T23:59:59`) >= new Date())
+    .filter((exam) => !exam.archivedAt && new Date(`${exam.date}T23:59:59`) >= new Date())
     .sort((a, b) => a.date.localeCompare(b.date))[0];
   const quickSlugs = [...personal.pins, ...personal.recents]
     .filter((slug, index, all) => all.indexOf(slug) === index)
@@ -234,9 +299,9 @@ function HomePage({ catalog, personal, navigate, openItem, togglePin }) {
 
 function ExamSummary({ exam, catalog, navigate, openItem }) {
   if (!exam) return <aside className="exam-summary empty"><span className="exam-label">NÄCHSTE PRÜFUNG</span><strong>Noch kein Termin</strong><p>Lege eine Prüfung an und stelle deine Fokusliste zusammen.</p><button className="primary-button" onClick={() => navigate("/pruefungen?neu=1")}>Prüfung anlegen</button></aside>;
-  const days = Math.max(0, Math.ceil((new Date(`${exam.date}T23:59:59`) - new Date()) / 86400000));
+  const distance = dateDistance(exam.date);
   const focus = exam.itemSlugs.map(findLearningItemBySlug).find(Boolean);
-  return <aside className="exam-summary"><span className="exam-label">NÄCHSTE PRÜFUNG</span><div className="countdown"><strong>{days}</strong><span>Tage</span></div><h2>{exam.title}</h2><p>{new Intl.DateTimeFormat("de-DE", { dateStyle: "long" }).format(new Date(`${exam.date}T12:00:00`))}</p>{focus && <button className="primary-button" onClick={() => openItem(focus)}>Jetzt {focus.title} lernen</button>}</aside>;
+  return <aside className="exam-summary"><span className="exam-label">NÄCHSTE PRÜFUNG</span><div className="countdown"><strong>{distance.short}</strong><span>{distance.suffix}</span></div><h2>{exam.title}</h2><p>{formatExamDate(exam.date)}</p>{focus && <button className="primary-button" onClick={() => openItem(focus)}>Jetzt {focus.title} lernen</button>}</aside>;
 }
 
 function SectionHeader({ eyebrow, title, action, onAction }) {
@@ -293,32 +358,180 @@ function LibraryPage({ catalog, pins, openItem, togglePin }) {
   </div>;
 }
 
-function ExamsPage({ catalog, exams, startEditing, saveExam, removeExam, openItem }) {
-  const [editing, setEditing] = useState(startEditing);
-  return <div className="page"><div className="page-title-row"><PageIntro eyebrow="PRÜFUNGSMODUS" title="Deine Prüfungen" copy="Termine, Fokuslisten und der nächste sinnvolle Einstieg – ohne künstliche Prozentwerte." /><button className="primary-button" onClick={() => setEditing(true)}>Prüfung anlegen</button></div>
-    {editing && <ExamForm catalog={catalog} onCancel={() => setEditing(false)} onSave={(exam) => { saveExam(exam); setEditing(false); }} />}
-    {exams.length ? <div className="exam-list">{exams.map((exam) => <ExamCard key={exam.id} exam={exam} onRemove={removeExam} onOpen={openItem} />)}</div> : !editing && <div className="empty-card large"><div className="empty-icon">◇</div><div><strong>Plane deine nächste Prüfung</strong><p>Lege Datum und Fokus-Trainer fest. Die App zeigt dir anschließend den direkten Einstieg.</p><button className="text-button" onClick={() => setEditing(true)}>Erste Prüfung anlegen →</button></div></div>}
+function ExamsPage({ catalog, exams, startEditing, saveExam, archiveExam, openItem, onDirtyChange, onCreated }) {
+  const [editingId, setEditingId] = useState(startEditing ? "new" : null);
+  const [dirty, setDirty] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const activeExams = exams.filter((exam) => !exam.archivedAt);
+  const upcoming = activeExams.filter((exam) => !isPastExam(exam));
+  const past = activeExams.filter(isPastExam);
+
+  useEffect(() => {
+    onDirtyChange(dirty);
+    const warnBeforeUnload = (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      onDirtyChange(false);
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [dirty, onDirtyChange]);
+
+  const runOrConfirm = (action) => {
+    if (dirty) setPendingAction(() => action);
+    else action();
+  };
+  const beginEditing = (id) => runOrConfirm(() => {
+    setEditingId(id);
+    setDirty(false);
+  });
+  const closeEditor = () => {
+    setEditingId(null);
+    setDirty(false);
+  };
+  const save = (exam) => {
+    const created = editingId === "new";
+    saveExam(exam);
+    closeEditor();
+    if (created) onCreated();
+  };
+  const archive = (exam) => runOrConfirm(() => {
+    closeEditor();
+    archiveExam(exam);
+  });
+
+  return <div className="page"><div className="page-title-row"><PageIntro eyebrow="PRÜFUNGSMODUS" title="Deine Prüfungen" copy="Termine, Fokuslisten und der nächste sinnvolle Einstieg – ohne künstliche Prozentwerte." /><button className="primary-button" onClick={() => beginEditing("new")}>Prüfung anlegen</button></div>
+    {editingId === "new" && <ExamForm catalog={catalog} onCancel={closeEditor} onSave={save} onDirtyChange={setDirty} />}
+    {!activeExams.length && editingId !== "new" && <div className="empty-card large"><div className="empty-icon">◇</div><div><strong>Plane deine nächste Prüfung</strong><p>Lege Datum und Fokus-Trainer fest. Die App zeigt dir anschließend den direkten Einstieg.</p><button className="text-button" onClick={() => beginEditing("new")}>Erste Prüfung anlegen →</button></div></div>}
+    {!!upcoming.length && <ExamSection title="Anstehend" exams={upcoming} editingId={editingId} catalog={catalog} onEdit={beginEditing} onCancel={closeEditor} onSave={save} onDirtyChange={setDirty} onArchive={archive} onOpen={openItem} />}
+    {!!past.length && <ExamSection title="Vergangen" exams={past} editingId={editingId} catalog={catalog} onEdit={beginEditing} onCancel={closeEditor} onSave={save} onDirtyChange={setDirty} onArchive={archive} onOpen={openItem} />}
+    {pendingAction && <ConfirmDialog title="Änderungen verwerfen?" copy="Deine Änderungen an dieser Prüfung wurden noch nicht gespeichert." confirmLabel="Änderungen verwerfen" onCancel={() => setPendingAction(null)} onConfirm={() => { const action = pendingAction; setPendingAction(null); setDirty(false); action(); }} />}
   </div>;
 }
 
-function ExamForm({ catalog, onCancel, onSave }) {
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState([]);
-  const choices = searchLearningCatalog(query, catalog).slice(0, 12);
-  const submit = (event) => {
-    event.preventDefault();
-    if (!title.trim() || !date || !selected.length) return;
-    onSave({ id: `${Date.now()}`, title, date, itemSlugs: selected });
-  };
-  return <form className="exam-form" onSubmit={submit}><div className="form-heading"><div><span className="eyebrow">NEUER TERMIN</span><h2>Prüfung planen</h2></div><button type="button" className="icon-button" aria-label="Schließen" onClick={onCancel}>×</button></div><div className="form-row"><label>Prüfungsname<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Formale Sprachen" required /></label><label>Datum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label></div><label>Fokus-Trainer<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Trainer suchen" /></label><div className="choice-list">{choices.map((item) => <label key={item.slug}><input type="checkbox" checked={selected.includes(item.slug)} onChange={() => setSelected((current) => current.includes(item.slug) ? current.filter((slug) => slug !== item.slug) : [...current, item.slug])}/><span><strong>{item.title}</strong><small>{item.course} · {item.duration}</small></span></label>)}</div><div className="form-actions"><span>{selected.length} ausgewählt</span><button type="button" className="secondary-button" onClick={onCancel}>Abbrechen</button><button className="primary-button" disabled={!title.trim() || !date || !selected.length}>Speichern</button></div></form>;
+function ExamSection({ title, exams, editingId, catalog, onEdit, onCancel, onSave, onDirtyChange, onArchive, onOpen }) {
+  return <section className="exam-section"><h2>{title}</h2><div className="exam-list">{exams.map((exam) => editingId === exam.id
+    ? <ExamForm key={exam.id} catalog={catalog} exam={exam} onCancel={onCancel} onSave={onSave} onDirtyChange={onDirtyChange} />
+    : <ExamCard key={exam.id} exam={exam} onEdit={() => onEdit(exam.id)} onArchive={() => onArchive(exam)} onOpen={onOpen} />)}</div></section>;
 }
 
-function ExamCard({ exam, onRemove, onOpen }) {
+function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
+  const initial = useMemo(() => ({ title: exam?.title ?? "", date: exam?.date ?? "", itemSlugs: exam?.itemSlugs ?? [] }), [exam]);
+  const [title, setTitle] = useState(initial.title);
+  const [date, setDate] = useState(initial.date);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(initial.itemSlugs);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [announcement, setAnnouncement] = useState("");
+  const results = searchLearningCatalog(query, catalog);
+  const choices = query.trim() ? results : results.slice(0, 12);
+  const availableCount = selected.filter((slug) => findLearningItemBySlug(slug)).length;
+  const dirty = title !== initial.title || date !== initial.date || selected.join("\0") !== initial.itemSlugs.join("\0");
+
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
+  const move = (from, to) => {
+    if (to < 0 || to >= selected.length || from === to) return;
+    setSelected((current) => {
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const item = findLearningItemBySlug(moved);
+      setAnnouncement(`${item?.title ?? "Eintrag"} an Position ${to + 1} verschoben.`);
+      return next;
+    });
+  };
+  const submit = (event) => {
+    event.preventDefault();
+    if (!title.trim() || !date || !availableCount) return;
+    onSave({ id: exam?.id ?? `${Date.now()}`, title, date, itemSlugs: selected });
+  };
+
+  return <form className="exam-form" onSubmit={submit}><div className="form-heading"><div><span className="eyebrow">{exam ? "PRÜFUNG BEARBEITEN" : "NEUER TERMIN"}</span><h2>{exam ? exam.title : "Prüfung planen"}</h2></div><button type="button" className="icon-button" aria-label="Schließen" onClick={onCancel}>×</button></div><div className="form-row"><label>Prüfungsname<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Formale Sprachen" required /></label><label>Datum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label></div>
+    <div className="focus-editor"><div className="editor-heading"><div><span className="eyebrow">DEINE FOKUSLISTE</span><h3>Reihenfolge festlegen</h3></div><span>{selected.length} {selected.length === 1 ? "Eintrag" : "Einträge"}</span></div><div className="ordered-focus-list">{selected.map((slug, index) => {
+      const item = findLearningItemBySlug(slug);
+      return <div className={`focus-editor-row${item ? "" : " unavailable"}`} key={slug} onDragEnter={(event) => { event.preventDefault(); if (draggedIndex !== null) { move(draggedIndex, index); setDraggedIndex(index); } }} onDragOver={(event) => event.preventDefault()}>
+        <span className="focus-position">{String(index + 1).padStart(2, "0")}</span>
+        <button type="button" className="drag-handle" draggable aria-label={`${item?.title ?? slug} ziehen`} onDragStart={(event) => { setDraggedIndex(index); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => setDraggedIndex(null)}>⠿</button>
+        <span className="focus-editor-copy"><strong>{item?.title ?? slug}</strong><small>{item ? `${item.course} · ${item.duration}` : "Nicht mehr verfügbar"}</small></span>
+        <span className="reorder-actions"><button type="button" aria-label={`${item?.title ?? slug} nach oben`} disabled={index === 0} onClick={() => move(index, index - 1)}>↑</button><button type="button" aria-label={`${item?.title ?? slug} nach unten`} disabled={index === selected.length - 1} onClick={() => move(index, index + 1)}>↓</button><button type="button" className="remove-focus" aria-label={`${item?.title ?? slug} entfernen`} onClick={() => setSelected((current) => current.filter((value) => value !== slug))}>×</button></span>
+      </div>;
+    })}</div>{!selected.length && <p className="focus-empty">Füge mindestens einen Trainer aus der Suche hinzu.</p>}<p className="sr-only" aria-live="polite">{announcement}</p></div>
+    <label className="trainer-search-label">Trainer hinzufügen<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Thema, Kurs oder Lernziel suchen" /></label><div className="choice-list add-choice-list">{choices.map((item) => {
+      const added = selected.includes(item.slug);
+      return <button type="button" key={item.slug} className={added ? "added" : ""} disabled={added} onClick={() => setSelected((current) => [...current, item.slug])}><span><strong>{item.title}</strong><small>{item.course} · {item.duration}</small></span><span>{added ? "Hinzugefügt" : "+ Hinzufügen"}</span></button>;
+    })}</div>{!choices.length && <p className="no-choice-results">Keine passenden Trainer gefunden.</p>}<div className="form-actions"><span>{availableCount ? `${availableCount} verfügbar` : "Mindestens ein verfügbarer Trainer erforderlich"}</span><button type="button" className="secondary-button" onClick={onCancel}>Abbrechen</button><button className="primary-button" disabled={!title.trim() || !date || !availableCount}>{exam ? "Änderungen sichern" : "Speichern"}</button></div></form>;
+}
+
+function ExamCard({ exam, onEdit, onArchive, onOpen, archived = false, onRestore, onDelete }) {
   const items = exam.itemSlugs.map(findLearningItemBySlug).filter(Boolean);
-  const days = Math.ceil((new Date(`${exam.date}T23:59:59`) - new Date()) / 86400000);
-  return <article className="exam-card"><div className="exam-date"><strong>{Math.max(0, days)}</strong><span>Tage</span></div><div className="exam-content"><span className="eyebrow">{new Intl.DateTimeFormat("de-DE", { dateStyle: "long" }).format(new Date(`${exam.date}T12:00:00`))}</span><h2>{exam.title}</h2><div className="focus-list">{items.map((item, index) => <button key={item.slug} onClick={() => onOpen(item)}><span>{String(index + 1).padStart(2, "0")}</span><span><strong>{item.title}</strong><small>{item.topic}</small></span><span>→</span></button>)}</div></div><button className="icon-button remove" aria-label={`${exam.title} löschen`} onClick={() => onRemove(exam.id)}>×</button></article>;
+  return <article className="exam-card"><div className="exam-date"><strong>{dateDistance(exam.date).short}</strong><span>{dateDistance(exam.date).suffix}</span></div><div className="exam-content"><span className="eyebrow">{formatExamDate(exam.date)}</span><h2>{exam.title}</h2><div className="focus-list">{items.map((item, index) => <button key={item.slug} onClick={() => onOpen(item)}><span>{String(index + 1).padStart(2, "0")}</span><span><strong>{item.title}</strong><small>{item.topic}</small></span><span>→</span></button>)}</div><div className="exam-card-actions">{archived ? <><button className="secondary-button" onClick={onRestore}>Wiederherstellen</button><button className="danger-text-button" onClick={onDelete}>Endgültig löschen</button></> : <><button className="secondary-button" onClick={onEdit}>Bearbeiten</button><button className="text-button" onClick={onArchive}>Archivieren</button></>}</div></div></article>;
+}
+
+function ArchivePage({ exams, restoreExam, removeExam, openItem }) {
+  const archived = exams.filter((exam) => exam.archivedAt).sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
+  const [deleteExam, setDeleteExam] = useState(null);
+  return <div className="page"><PageIntro eyebrow="ARCHIV" title="Archivierte Prüfungen" copy="Abgelegte Prüfungsvorbereitungen bleiben erreichbar und können jederzeit zurückkehren." />
+    {archived.length ? <div className="exam-list">{archived.map((exam) => <ExamCard key={exam.id} exam={exam} archived onRestore={() => restoreExam(exam.id)} onDelete={() => setDeleteExam(exam)} onOpen={openItem} />)}</div> : <div className="empty-card large"><div className="empty-icon">▤</div><div><strong>Dein Archiv ist leer</strong><p>Archivierte Prüfungen erscheinen hier und lassen sich später wiederherstellen.</p></div></div>}
+    {deleteExam && <ConfirmDialog destructive title="Prüfung endgültig löschen?" copy={`„${deleteExam.title}“ und ihre Fokusliste werden unwiderruflich entfernt.`} confirmLabel="Endgültig löschen" onCancel={() => setDeleteExam(null)} onConfirm={() => { removeExam(deleteExam.id); setDeleteExam(null); }} />}
+  </div>;
+}
+
+function ConfirmDialog({ title, copy, confirmLabel, destructive = false, onCancel, onConfirm }) {
+  const cancelRef = useRef(null);
+  const returnFocus = useRef(document.activeElement);
+  useEffect(() => {
+    cancelRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onCancel();
+      if (event.key !== "Tab") return;
+      const dialog = cancelRef.current?.closest("[role=dialog]");
+      const focusable = [...(dialog?.querySelectorAll("button") ?? [])];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.requestAnimationFrame?.(() => returnFocus.current?.focus());
+    };
+  }, [onCancel]);
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-copy"><h2 id="confirm-title">{title}</h2><p id="confirm-copy">{copy}</p><div><button ref={cancelRef} className="secondary-button" onClick={onCancel}>Abbrechen</button><button className={destructive ? "danger-button" : "primary-button"} onClick={onConfirm}>{confirmLabel}</button></div></section></div>;
+}
+
+function examDay(date) {
+  return new Date(`${date}T00:00:00`);
+}
+
+function todayDay() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function daysFromToday(date) {
+  return Math.round((examDay(date) - todayDay()) / 86400000);
+}
+
+function isPastExam(exam) {
+  return daysFromToday(exam.date) < 0;
+}
+
+function dateDistance(date) {
+  const days = daysFromToday(date);
+  if (days === 0) return { short: "Heute", suffix: "" };
+  if (days === 1) return { short: "Morgen", suffix: "" };
+  if (days > 1) return { short: `in ${days}`, suffix: "Tagen" };
+  return { short: `vor ${Math.abs(days)}`, suffix: Math.abs(days) === 1 ? "Tag" : "Tagen" };
+}
+
+function formatExamDate(date) {
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "long" }).format(new Date(`${date}T12:00:00`));
 }
 
 function PageIntro({ eyebrow, title, copy }) {
