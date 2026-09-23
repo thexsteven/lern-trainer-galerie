@@ -167,7 +167,7 @@ export default function DatenbankTrainer() {
   const Exercise = mode === "cards" ? Flashcard : mode === "quiz" ? MultipleChoice : mode === "sql" ? SqlChallenge : mode === "schema" ? SchemaTask : ConceptCheck;
 
   return <div className="db-trainer">
-    <header className="db-hero"><div><p className="db-kicker">ANGEWANDTE INFORMATIK</p><h1>Datenbanken verstehen.<br /><span>Systeme sicher bauen.</span></h1><p>Von relationalen Grundlagen über SQL und Normalisierung bis zu PostgreSQL, Supabase und Concurrency.</p></div><div className="db-hero-schema" aria-hidden="true"><span>companies</span><i>1</i><b>projects</b><i>n</i><span>tasks</span></div></header>
+    <header className="db-hero"><div><p className="db-kicker">DATENBANK-KOMPETENZTRAINER</p><h1>Datenbanken verstehen.<br /><span>Systeme sicher bauen.</span></h1><p>Von relationalen Grundlagen über SQL und Normalisierung bis zu PostgreSQL, Supabase und Concurrency.</p></div><div className="db-hero-schema" aria-hidden="true"><span>companies</span><i>1</i><b>projects</b><i>n</i><span>tasks</span></div></header>
     <nav className="db-main-tabs" aria-label="Bereich wählen"><button className={view === "overview" ? "active" : ""} onClick={() => setView("overview")}>Übersicht</button><button className={view === "learn" ? "active" : ""} onClick={() => setView("learn")}>Trainieren</button></nav>
     {view === "overview" ? <Dashboard progress={progress} onStart={() => setView("learn")} /> : <main className="db-learning">
       <div className="db-mode-tabs" role="tablist">{modes.map((entry) => <button key={entry.id} className={mode === entry.id ? "active" : ""} onClick={() => changeFilters(entry.id)}><span>{entry.label}</span><small>{entry.items.length}</small></button>)}</div>
