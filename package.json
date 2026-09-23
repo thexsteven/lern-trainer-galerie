@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node scripts/build-learning-labs.mjs && vite",
     "build": "node scripts/build-cyk.mjs && node scripts/build-compiler-parser.mjs && node scripts/build-learning-labs.mjs && vite build",
-    "test": "node --test src/catalog.test.js src/personalStore.test.js scripts/build-learning-labs.test.mjs && vitest run src/App.test.jsx --environment jsdom --pool=forks",
+    "test": "node --test src/catalog.test.js src/personalStore.test.js src/trainers/Datenbanken/database/database.test.js scripts/build-learning-labs.test.mjs && vitest run src/App.test.jsx --environment jsdom --pool=forks",
     "preview": "vite preview"
   },
   "dependencies": {
