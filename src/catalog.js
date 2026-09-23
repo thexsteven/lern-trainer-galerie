@@ -23,6 +23,11 @@ const labItem = (slug, title, course, topic, goal, duration, url, accent) => ({
 });
 
 const catalog = [
+  reactItem("mathe-funktionen", "Mehrdimensionale Funktionen & Ableitungen", "Angewandte Mathematik", "Kapitel 1–3", "Felder, Gradienten, Jacobi-Matrizen und Kettenregel selbst berechnen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Funktionen.jsx", "teal"),
+  reactItem("mathe-autodiff", "Autodiff, Taylor & Optimierung", "Angewandte Mathematik", "Kapitel 4–5 und 7", "Rechengraphen ableiten, Extrema prüfen und Optimierungsschritte rechnen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Autodiff.jsx", "cyan"),
+  reactItem("mathe-regression", "Regression, Lagrange & PCA", "Angewandte Mathematik", "Kapitel 6 und 9", "Regression lösen, Nebenbedingungen prüfen und Hauptachsen bestimmen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Regression.jsx", "indigo"),
+  reactItem("mathe-integrale", "Mehrfachintegrale & Wahrscheinlichkeitsdichten", "Angewandte Mathematik", "Kapitel 8", "Gebiete beschreiben, Integrale berechnen und gemeinsame Dichten auswerten.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Integrale.jsx", "blue"),
+  reactItem("mathe-klausurwerkstatt", "Klausurwerkstatt – 60 Minuten", "Angewandte Mathematik", "Skriptbasierte Probeklausuren", "Drei neue Prüfungsvarianten, getrennte Selbstbewertung und ehrlicher Leistungsnachweis.", "60 Min./Prüfung", "./trainers/Angewandte Mathematik/Klausurwerkstatt.jsx", "rose"),
   reactItem("analysis-klausur", "Analysis-Klausurtraining", "Analysis", "Prüfungsvorbereitung", "Aufgabentypen erkennen, Lösungswege üben und Klausurstrategien festigen.", "45–90 Min.", "./trainers/Analysis/AnalysisKlausurtrainer.jsx", "violet"),
   reactItem("boolesche-vereinfachung", "Boolesche Ausdrücke vereinfachen", "Digitaltechnik", "Schaltnetze", "Boolesche Gesetze verstehen und Ausdrücke sicher vereinfachen.", "25 Min.", "./trainers/Digitaltechnik/BoolescheVereinfachung.jsx", "amber"),
   reactItem("flipflops", "Flipflops & Zustandsautomaten", "Digitaltechnik", "Sequenzielle Logik", "Speicherelemente, Taktflanken und Zustandsübergänge interaktiv untersuchen.", "35 Min.", "./trainers/Digitaltechnik/FlipFlops.jsx", "amber"),

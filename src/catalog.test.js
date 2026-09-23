@@ -26,7 +26,8 @@ test("catalog exposes every usable learning offer through a unique stable slug",
   const catalog = getLearningCatalog();
   const slugs = catalog.map((item) => item.slug);
 
-  assert.equal(catalog.length, 38);
+  assert.equal(catalog.length, 43);
+  assert.equal(catalog.filter(item => item.course === "Angewandte Mathematik").length, 5);
   assert.equal(new Set(slugs).size, catalog.length);
   assert.equal(findLearningItemBySlug("dea-wortlauf")?.title, "DEA-Wortlauf verstehen");
   assert.equal(findLearningItemBySlug("cyk-verstehen")?.kind, "lab");
