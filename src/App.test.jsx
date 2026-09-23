@@ -28,6 +28,20 @@ afterEach(() => {
 });
 
 describe("learning app navigation", () => {
+  it("opens the first current search result with Enter and stays open when there are no matches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.keyboard("{Control>}k{/Control}");
+    const input = screen.getByRole("textbox", { name: "Lernangebote durchsuchen" });
+    await user.type(input, "zzzzkeinangebot{Enter}");
+    expect(screen.getByRole("dialog", { name: "Lernangebote durchsuchen" })).toBeVisible();
+    expect(window.location.pathname).toBe("/");
+    await user.clear(input);
+    await user.type(input, "angewandte{Enter}");
+    await waitFor(() => expect(window.location.pathname).toBe("/trainer/mathe-funktionen"));
+    expect(screen.queryByRole("dialog", { name: "Lernangebote durchsuchen" })).not.toBeInTheDocument();
+  });
+
   it("shows the complete catalog on the start page and opens the library", async () => {
     const user = userEvent.setup();
     render(<App />);
