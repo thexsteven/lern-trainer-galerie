@@ -66,7 +66,7 @@ function Exercise({ word, independent, onRecord, onNext }) {
   </>;
 }
 
-export default function WortlaufTrainer() {
+export default function WortlaufTrainer({ onLearningResult }) {
   const [page, setPage] = useState(0);
   const [entry, setEntry] = useState(["", "", ""]);
   const [entryChecked, setEntryChecked] = useState(false);
@@ -81,7 +81,15 @@ export default function WortlaufTrainer() {
   const [reflection, setReflection] = useState("");
   const example = "aba";
   function changeAnswer(setter, values, i, value) { setter(values.map((v,j) => i === j ? value : v)); }
-  function record(item) { setRecords(r => [...r, item]); }
+  function record(item) {
+    setRecords(r => [...r, item]);
+    if (item.independent) onLearningResult?.({
+      outcome: "correct",
+      verified: true,
+      firstAttempt: item.attempts === 1,
+      helpUsed: item.help,
+    });
+  }
   return <div className="wl"><div className="wl-shell">
     <header><div className="wl-top"><span className="wl-eyebrow">FORMALE SPRACHEN & AUTOMATEN / EINHEIT 01</span></div><h1>Ein Wort. Ein Weg.<br/><span>Jeden Schritt verstehen.</span></h1><p className="wl-lead">Vom ersten Zeichen zur begründeten Entscheidung: lesen, selbst lösen, gezielt Hilfe nutzen – und anschließend ohne Zettel anwenden.</p><div className="wl-meta"><span>01 / DEA-Wortlauf</span><span>In deinem Tempo</span><span>Belegt am Vorlesungsskript</span></div></header>
     <nav aria-label="Lernschritte">{steps.map((name,i) => <button key={name} aria-current={page === i ? "step" : undefined} onClick={() => setPage(i)}><span>{String(i+1).padStart(2,"0")}</span>{name}</button>)}</nav>

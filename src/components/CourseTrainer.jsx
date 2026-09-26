@@ -28,12 +28,19 @@ function Practice({ label, task, onSolved }) {
   const [selected, setSelected] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   const solved = revealed && selected === task.answer;
 
   const check = () => {
     if (selected === null) return;
+    setAttempts((value) => value + 1);
     setRevealed(true);
-    if (selected === task.answer) onSolved?.();
+    if (selected === task.answer) onSolved?.({
+      outcome: "correct",
+      verified: true,
+      firstAttempt: attempts === 0,
+      helpUsed: showHint,
+    });
   };
 
   const retry = () => {
@@ -157,12 +164,16 @@ function Unit({ unit, completed, onComplete }) {
   );
 }
 
-export default function CourseTrainer({ title, subtitle, course, units }) {
+export default function CourseTrainer({ title, subtitle, course, units, onLearningResult }) {
   const [active, setActive] = useState(0);
   const [completed, setCompleted] = useState([]);
   const observations = useMemo(() => units.filter((_, index) => completed.includes(index)).map((unit) => unit.title), [completed, units]);
 
-  const completeUnit = (index) => setCompleted((current) => current.includes(index) ? current : [...current, index]);
+  const completeUnit = (index, result) => {
+    if (completed.includes(index)) return;
+    setCompleted((current) => [...current, index]);
+    onLearningResult?.(result);
+  };
 
   return (
     <main className="ct-shell">
@@ -188,7 +199,7 @@ export default function CourseTrainer({ title, subtitle, course, units }) {
         </nav>
       </section>
 
-      <Unit key={active} unit={units[active]} completed={completed.includes(active)} onComplete={() => completeUnit(active)} />
+      <Unit key={active} unit={units[active]} completed={completed.includes(active)} onComplete={(result) => completeUnit(active, result)} />
 
       <footer className="ct-footer">
         <strong>Beobachtungen aus dieser Sitzung</strong>

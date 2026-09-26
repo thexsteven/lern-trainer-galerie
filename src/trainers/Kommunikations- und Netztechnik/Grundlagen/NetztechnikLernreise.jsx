@@ -158,6 +158,6 @@ const units = [
   },
 ];
 
-export default function NetztechnikLernreise() {
-  return <CourseTrainer course="Kommunikations- und Netztechnik" title="Netze wirklich verstehen" subtitle="Vom historischen Aufbau über OSI und TCP/IP bis zur berechenbaren Leistung paketvermittelter Netze." units={units} />;
+export default function NetztechnikLernreise({ onLearningResult }) {
+  return <CourseTrainer course="Kommunikations- und Netztechnik" title="Netze wirklich verstehen" subtitle="Vom historischen Aufbau über OSI und TCP/IP bis zur berechenbaren Leistung paketvermittelter Netze." units={units} onLearningResult={onLearningResult} />;
 }

@@ -13,11 +13,14 @@ import {
   searchLearningCatalog,
 } from "./catalog.js";
 import { createPersonalStore } from "./personalStore.js";
+import { createLearningControl } from "./learningControl.js";
+import { getSemesterLearningProgram } from "./learningProgram.js";
 import "./app.css";
 
 const modules = import.meta.glob([
   "./trainers/**/*.jsx",
   "./components/Archiv/**/*.jsx",
+  "./components/ExamDiagnostic.jsx",
 ]);
 const lazyModules = new Map();
 
@@ -57,10 +60,18 @@ function usePersonalState(store) {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
 
-export default function App({ storage = window.localStorage }) {
+const systemClock = () => Date.now();
+
+export default function App({ storage = window.localStorage, learningClock = systemClock }) {
   const catalog = useMemo(getLearningCatalog, []);
   const store = useMemo(() => createPersonalStore(storage), [storage]);
   const personal = usePersonalState(store);
+  const program = useMemo(getSemesterLearningProgram, []);
+  const learningControl = useMemo(
+    () => createLearningControl({ storage, program, clock: learningClock }),
+    [storage, program, learningClock],
+  );
+  const learning = useSyncExternalStore(learningControl.subscribe, learningControl.getSnapshot, learningControl.getSnapshot);
   const [route, navigate] = useRoute();
   const [searchOpen, setSearchOpen] = useState(false);
   const [navigationRequest, setNavigationRequest] = useState(null);
@@ -123,12 +134,19 @@ export default function App({ storage = window.localStorage }) {
 
   if (route.name === "trainer") {
     const item = findLearningItemBySlug(route.slug);
+    const learningSession = learning.activeSession?.action.trainerSlug === route.slug ? learning.activeSession : null;
     return (
       <TrainerView
         item={item}
+        learningSession={learningSession}
         pinned={personal.pins.includes(route.slug)}
         onBack={() => requestNavigation("/")}
         onPin={() => item && store.togglePin(item.slug)}
+        onLearningResult={(result) => {
+          if (!learningSession) return;
+          learningControl.complete({ sessionId: learningSession.id, result });
+          navigate("/");
+        }}
       />
     );
   }
@@ -148,11 +166,15 @@ export default function App({ storage = window.localStorage }) {
           <main>
             {route.name === "home" && (
               <HomePage
-                catalog={catalog}
-                personal={personal}
                 navigate={requestNavigation}
-                openItem={openItem}
-                togglePin={store.togglePin}
+                learning={learning}
+                startLearning={() => {
+                  const started = learningControl.startNow();
+                  if (started) {
+                    store.recordOpen(learning.action.trainerSlug);
+                    requestNavigation(started.path);
+                  }
+                }}
               />
             )}
             {route.name === "library" && (
@@ -266,42 +288,33 @@ function MobileNav({ route, navigate }) {
   </nav>;
 }
 
-function HomePage({ catalog, personal, navigate, openItem, togglePin }) {
-  const nextExam = personal.exams
-    .filter((exam) => !exam.archivedAt && new Date(`${exam.date}T23:59:59`) >= new Date())
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  const quickSlugs = [...personal.pins, ...personal.recents]
-    .filter((slug, index, all) => all.indexOf(slug) === index)
-    .slice(0, 3);
-  const quickItems = quickSlugs.map(findLearningItemBySlug).filter(Boolean);
-
+function HomePage({ navigate, learning, startLearning }) {
   return <div className="page home-page">
     <section className="hero-panel">
       <div>
-        <p className="eyebrow">DEIN STUDIUM · KLAR SORTIERT</p>
-        <h1>Bereit für die<br /><span>nächste Prüfung.</span></h1>
-        <p className="hero-copy">Finde deinen nächsten Fokus, steige wieder ein oder öffne direkt einen deiner Lern-Trainer.</p>
+        <p className="eyebrow">DEIN LERNMORGEN · KLAR GEFÜHRT</p>
+        <h1>Nicht überlegen.<br /><span>Einfach anfangen.</span></h1>
+        <p className="hero-copy">Der Lerntrainer wählt den nächsten klausurrelevanten Schritt und hält dein Wochenlimit von acht Stunden ein.</p>
       </div>
-      <ExamSummary exam={nextExam} catalog={catalog} navigate={navigate} openItem={openItem} />
+      <TodayCard learning={learning} onStart={startLearning} />
     </section>
-
-    <SectionHeader eyebrow="DEIN NÄCHSTER SCHRITT" title="Weiterlernen" action="Prüfungen verwalten" onAction={() => navigate("/pruefungen")} />
-    {quickItems.length ? (
-      <div className="card-grid quick-grid">{quickItems.map((item) => <LearningCard key={item.slug} item={item} pinned={personal.pins.includes(item.slug)} onOpen={openItem} onPin={togglePin} />)}</div>
-    ) : (
-      <div className="empty-card"><div className="empty-icon">◇</div><div><strong>Noch nichts angeheftet</strong><p>Öffne einen Trainer oder hefte ihn an. Er erscheint dann hier für den schnellen Wiedereinstieg.</p></div></div>
-    )}
-
-    <SectionHeader eyebrow="ALLE INHALTE" title="Deine Lernbibliothek" action="Bibliothek öffnen" onAction={() => navigate("/bibliothek")} />
-    <CatalogSections catalog={catalog} pins={personal.pins} onOpen={openItem} onPin={togglePin} />
+    <SectionHeader eyebrow="FREIES ÜBEN" title="Weitere Lernangebote" action="Bibliothek öffnen" onAction={() => navigate("/bibliothek")} />
+    <p className="home-library-note">Freies Üben bleibt möglich. Für den verbindlichen Klausurplan zählt nur eine Sitzung, die du über „Jetzt starten“ öffnest.</p>
   </div>;
 }
 
-function ExamSummary({ exam, catalog, navigate, openItem }) {
-  if (!exam) return <aside className="exam-summary empty"><span className="exam-label">NÄCHSTE PRÜFUNG</span><strong>Noch kein Termin</strong><p>Lege eine Prüfung an und stelle deine Fokusliste zusammen.</p><button className="primary-button" onClick={() => navigate("/pruefungen?neu=1")}>Prüfung anlegen</button></aside>;
-  const distance = dateDistance(exam.date);
-  const focus = exam.itemSlugs.map(findLearningItemBySlug).find(Boolean);
-  return <aside className="exam-summary"><span className="exam-label">NÄCHSTE PRÜFUNG</span><div className="countdown"><strong>{distance.short}</strong><span>{distance.suffix}</span></div><h2>{exam.title}</h2><p>{formatExamDate(exam.date)}</p>{focus && <button className="primary-button" onClick={() => openItem(focus)}>Jetzt {focus.title} lernen</button>}</aside>;
+function TodayCard({ learning, onStart }) {
+  const action = learning.action;
+  if (!action) return <aside className="today-card done"><span className="today-label">HEUTE</span><h2>{learning.status === "rest" ? "Lernfreier Tag" : "Tagesziel erreicht"}</h2><p>Es ist kein weiterer Pflichtblock eingeplant. Die Bibliothek bleibt für freiwilliges Üben offen.</p><div className="today-progress">Diese Woche: {learning.weekMinutes} / {learning.fixedWeeklyMinutes} Minuten</div></aside>;
+  return <aside className="today-card">
+    <div className="today-topline"><span className="today-label">{learning.status === "active" ? "LÄUFT GERADE" : "HEUTE UM 05:30"}</span><span className="relevance-badge">Relevanz {action.relevance}</span></div>
+    <h2>{action.examTitle}</h2>
+    <p className="today-action">{action.kind === "diagnostic" ? "Kalter Einstiegstest" : action.kind === "review" ? "Fällige Wiederholung" : action.level?.label || "Geführter Lernblock"} · {action.minutes} Min.</p>
+    <details><summary>Warum ist das relevant?</summary><p>{action.reason}</p><small>Quelle: {action.source}</small></details>
+    {learning.warning && <p className="today-warning" role="status">{learning.warning}</p>}
+    <button className="primary-button" onClick={onStart}>{learning.status === "active" ? "Sitzung fortsetzen" : "Jetzt starten"}</button>
+    <div className="today-progress">Diese Woche: {learning.weekMinutes} / {learning.fixedWeeklyMinutes} Minuten</div>
+  </aside>;
 }
 
 function SectionHeader({ eyebrow, title, action, onAction }) {
@@ -553,10 +566,10 @@ class TrainerErrorBoundary extends React.Component {
   render() { return this.state.error ? <div className="trainer-error"><strong>Dieser Trainer konnte nicht geladen werden.</strong><p>{String(this.state.error.message || this.state.error)}</p></div> : this.props.children; }
 }
 
-function TrainerView({ item, pinned, onBack, onPin }) {
+function TrainerView({ item, pinned, onBack, onPin, learningSession, onLearningResult }) {
   if (!item) return <div className="not-found"><span className="brand-mark">L</span><h1>Lernangebot nicht gefunden</h1><button className="primary-button" onClick={onBack}>Zur Startseite</button></div>;
   const Trainer = getTrainer(item);
-  return <div className="trainer-stage"><header className="trainer-bar"><button className="back-button" aria-label="Zur Startseite" onClick={onBack}>← <span>Start</span></button><div className="trainer-identity"><span>{item.course} · {item.topic}</span><strong>{item.title}</strong></div><button className={`pin-button large${pinned ? " pinned" : ""}`} aria-pressed={pinned} aria-label={pinned ? "Anheftung lösen" : "Trainer anheften"} onClick={onPin}>{pinned ? "◆" : "◇"}</button></header><div className="trainer-content"><TrainerErrorBoundary item={item}><Suspense fallback={<div className="trainer-loading"><span /><p>{item.title} wird geladen …</p></div>}>{Trainer ? <Trainer /> : <div className="trainer-error">Trainer-Modul fehlt.</div>}</Suspense></TrainerErrorBoundary></div></div>;
+  return <div className="trainer-stage"><header className="trainer-bar"><button className="back-button" aria-label="Zur Startseite" onClick={onBack}>← <span>Start</span></button><div className="trainer-identity"><span>{item.course} · {item.topic}</span><strong>{item.title}</strong></div>{learningSession && !item.diagnosticId && <button className="session-complete" onClick={() => onLearningResult({ outcome: "completed", verified: false, firstAttempt: false, helpUsed: false })}>Lernblock abschließen</button>}<button className={`pin-button large${pinned ? " pinned" : ""}`} aria-pressed={pinned} aria-label={pinned ? "Anheftung lösen" : "Trainer anheften"} onClick={onPin}>{pinned ? "◆" : "◇"}</button></header><div className="trainer-content"><TrainerErrorBoundary item={item}><Suspense fallback={<div className="trainer-loading"><span /><p>{item.title} wird geladen …</p></div>}>{Trainer ? <Trainer item={item} learningSession={learningSession} onLearningResult={onLearningResult} /> : <div className="trainer-error">Trainer-Modul fehlt.</div>}</Suspense></TrainerErrorBoundary></div></div>;
 }
 
 function groupBy(items, key) {

@@ -26,7 +26,7 @@ test("catalog exposes every usable learning offer through a unique stable slug",
   const catalog = getLearningCatalog();
   const slugs = catalog.map((item) => item.slug);
 
-  assert.equal(catalog.length, 45);
+  assert.equal(catalog.length, 49);
   assert.equal(catalog.filter(item => item.course === "Angewandte Mathematik").length, 5);
   assert.equal(new Set(slugs).size, catalog.length);
   assert.equal(findLearningItemBySlug("dea-wortlauf")?.title, "DEA-Wortlauf verstehen");
@@ -41,11 +41,11 @@ test("every React trainer and archived component is reachable through the catalo
     ])
   ).flat().map((path) => `./${relative(resolve(projectRoot, "src"), path).replaceAll("\\", "/")}`);
 
-  const catalogSources = getLearningCatalog()
+  const catalogSources = [...new Set(getLearningCatalog()
     .filter((item) => item.kind === "trainer")
-    .map((item) => item.source);
+    .map((item) => item.source))];
 
-  assert.deepEqual(catalogSources.sort(), discoveredFiles.sort());
+  assert.deepEqual(catalogSources.sort(), [...discoveredFiles, "./components/ExamDiagnostic.jsx"].sort());
 });
 
 test("every standalone learning source has a catalog destination", async () => {

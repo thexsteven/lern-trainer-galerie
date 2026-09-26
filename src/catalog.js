@@ -1,4 +1,4 @@
-const reactItem = (slug, title, course, topic, goal, duration, source, accent) => ({
+const reactItem = (slug, title, course, topic, goal, duration, source, accent, metadata = {}) => ({
   slug,
   title,
   course,
@@ -8,6 +8,7 @@ const reactItem = (slug, title, course, topic, goal, duration, source, accent) =
   source,
   accent,
   kind: "trainer",
+  ...metadata,
 });
 
 const labItem = (slug, title, course, topic, goal, duration, url, accent) => ({
@@ -23,6 +24,10 @@ const labItem = (slug, title, course, topic, goal, duration, url, accent) => ({
 });
 
 const catalog = [
+  reactItem("diagnose-mathe-3", "Kalter Einstiegstest · Mathematik 3", "Mathematik 3", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "mathe" }),
+  reactItem("diagnose-netztechnik", "Kalter Einstiegstest · Netztechnik", "Kommunikations- und Netztechnik", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "netz" }),
+  reactItem("diagnose-systemnahe-programmierung", "Kalter Einstiegstest · Systemnahe Programmierung", "Systemnahe Programmierung 1", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "orange", { diagnosticId: "systemnah" }),
+  reactItem("diagnose-formale-sprachen", "Kalter Einstiegstest · Formale Sprachen", "Formale Sprachen & Automaten", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "mint", { diagnosticId: "fsa" }),
   reactItem("mathe-funktionen", "Mehrdimensionale Funktionen & Ableitungen", "Angewandte Mathematik", "Kapitel 1–3", "Felder, Gradienten, Jacobi-Matrizen und Kettenregel selbst berechnen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Funktionen.jsx", "teal"),
   reactItem("mathe-autodiff", "Autodiff, Taylor & Optimierung", "Angewandte Mathematik", "Kapitel 4–5 und 7", "Rechengraphen ableiten, Extrema prüfen und Optimierungsschritte rechnen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Autodiff.jsx", "cyan"),
   reactItem("mathe-regression", "Regression, Lagrange & PCA", "Angewandte Mathematik", "Kapitel 6 und 9", "Regression lösen, Nebenbedingungen prüfen und Hauptachsen bestimmen.", "10–20 Min./Einheit", "./trainers/Angewandte Mathematik/Regression.jsx", "indigo"),

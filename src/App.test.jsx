@@ -42,37 +42,33 @@ describe("learning app navigation", () => {
     expect(screen.queryByRole("dialog", { name: "Lernangebote durchsuchen" })).not.toBeInTheDocument();
   });
 
-  it("shows the complete catalog on the start page and opens the library", async () => {
+  it("keeps the start page focused and opens the complete library", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Bereit für die nächste Prüfung." })).toBeVisible();
-    expect(screen.getByText("DEA-Wortlauf verstehen")).toBeVisible();
-    expect(screen.getByText("Reguläre Ausdrücke · Prüfung")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Nicht überlegen. Einfach anfangen." })).toBeVisible();
+    expect(screen.queryByText("DEA-Wortlauf verstehen")).not.toBeInTheDocument();
 
     const desktopNavigation = screen.getByRole("complementary", { name: "Hauptnavigation" });
     await user.click(within(desktopNavigation).getByRole("button", { name: "Bibliothek" }));
 
     expect(window.location.pathname).toBe("/bibliothek");
     expect(screen.getByRole("heading", { name: "Alle Lernangebote" })).toBeVisible();
+    expect(screen.getByText("DEA-Wortlauf verstehen")).toBeVisible();
+    expect(screen.getByText("Reguläre Ausdrücke · Prüfung")).toBeVisible();
   });
 
-  it("opens the exam form directly from the start-page call to action", async () => {
+  it("starts the planned Monday mathematics diagnostic", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    const learningClock = () => Date.parse("2026-09-28T05:30:00+02:00");
+    render(<App learningClock={learningClock} />);
 
-    await user.click(screen.getByRole("button", { name: "Prüfung anlegen" }));
+    expect(screen.getByRole("heading", { name: "Mathematik 3" })).toBeVisible();
+    expect(screen.getByText(/Kalter Einstiegstest · 25 Min/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Jetzt starten" }));
 
-    expect(window.location.pathname).toBe("/pruefungen");
-    expect(screen.getByRole("heading", { name: "Prüfung planen" })).toBeVisible();
-
-    await user.type(screen.getByLabelText("Prüfungsname"), "Neue Prüfung");
-    await user.type(screen.getByLabelText("Datum"), "2099-10-14");
-    await user.click(screen.getByRole("button", { name: /Analysis-Klausurtraining.*Hinzufügen/ }));
-    await user.click(screen.getByRole("button", { name: "Speichern" }));
-
-    expect(window.location.pathname).toBe("/pruefungen");
-    expect(window.location.search).toBe("");
+    expect(window.location.pathname).toBe("/trainer/diagnose-mathe-3");
+    expect(await screen.findByRole("heading", { name: /Mathematik 3/ })).toBeVisible();
   });
 
   it("opens the Wortlauf pilot as a focused learning experience", async () => {
@@ -83,7 +79,7 @@ describe("learning app navigation", () => {
     expect(screen.queryByRole("button", { name: "Aufnahme vorbereiten" })).not.toBeInTheDocument();
   });
 
-  it("edits and reorders a focus list and uses its first item on the start page", async () => {
+  it("edits and reorders a focus list", async () => {
     seedPersonalState([{
       id: "future",
       title: "Algorithmen",
@@ -106,9 +102,6 @@ describe("learning app navigation", () => {
       itemSlugs: ["merge-sort", "analysis-klausur"],
     });
 
-    const desktopNavigation = screen.getByRole("complementary", { name: "Hauptnavigation" });
-    await user.click(within(desktopNavigation).getByRole("button", { name: "Start" }));
-    expect(screen.getByRole("button", { name: "Jetzt Merge Sort lernen" })).toBeVisible();
   });
 
   it("groups past exams and archives and restores an upcoming exam", async () => {
