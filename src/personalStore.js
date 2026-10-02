@@ -20,14 +20,18 @@ export function createPersonalStore(storage) {
   let state = load(storage);
   const listeners = new Set();
 
-  const commit = (next) => {
-    state = next;
+  const commit = (next, { requirePersistence = false } = {}) => {
+    let persisted = true;
     try {
-      storage?.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (!storage) throw new Error("Storage unavailable");
+      storage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
-      // The app remains usable when storage is unavailable.
+      persisted = false;
+      if (requirePersistence) return { accepted: false, persisted: false };
     }
+    state = next;
     listeners.forEach((listener) => listener());
+    return { accepted: true, persisted };
   };
 
   return {
@@ -57,11 +61,11 @@ export function createPersonalStore(storage) {
         itemSlugs: [...new Set(exam.itemSlugs)],
         ...(existing?.archivedAt ? { archivedAt: existing.archivedAt } : {}),
       };
-      commit({
+      return commit({
         ...state,
         exams: [...state.exams.filter((item) => item.id !== nextExam.id), nextExam]
           .sort((a, b) => a.date.localeCompare(b.date)),
-      });
+      }, { requirePersistence: true });
     },
     removeExam(id) {
       commit({ ...state, exams: state.exams.filter((exam) => exam.id !== id) });

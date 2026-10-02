@@ -96,6 +96,7 @@ function interpret(black, white) {
 // Keyframes / Animationen
 // ---------------------------------------------------------------------------
 const STYLE = `
+.mastermind-disc:focus-visible { outline: 3px solid ${C.gold}; outline-offset: 3px; }
 @keyframes pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08);opacity:1} 100%{transform:scale(1);opacity:1} }
 @keyframes drop { 0%{transform:translateY(-10px);opacity:0} 100%{transform:translateY(0);opacity:1} }
 @keyframes glow { 0%,100%{box-shadow:0 0 0 0 rgba(252,211,77,0)} 50%{box-shadow:0 0 0 4px rgba(252,211,77,.25)} }
@@ -191,6 +192,8 @@ const btnGhost = { background: "transparent", color: C.text, border: `1px solid 
 
 // Ein farbiger Spielstein (Code-Position)
 function Disc({ ch, size = 38, faded, ring, hidden, onClick, title }) {
+  const Element = onClick ? "button" : "span";
+  const interaction = onClick ? { type: "button", className: "mastermind-disc", onClick, "aria-label": title || (ch ? `${NAME_OF[ch]} entfernen` : "Leeres Feld") } : {};
   const base = {
     width: size,
     height: size,
@@ -204,23 +207,25 @@ function Disc({ ch, size = 38, faded, ring, hidden, onClick, title }) {
     transition: "all .25s",
     boxSizing: "border-box",
     flexShrink: 0,
+    padding: 0,
+    fontFamily: "inherit",
   };
   if (hidden) {
     return (
-      <div onClick={onClick} title={title} style={{ ...base, background: C.panel2, border: `2px dashed ${C.line}`, color: C.dim }}>
+      <Element {...interaction} title={title} style={{ ...base, background: C.panel2, border: `2px dashed ${C.line}`, color: C.dim }}>
         ?
-      </div>
+      </Element>
     );
   }
   if (!ch) {
     return (
-      <div onClick={onClick} title={title || "leeres Feld"} style={{ ...base, background: "transparent", border: `2px dashed ${C.line}`, color: C.dim }} />
+      <Element {...interaction} title={title || "leeres Feld"} style={{ ...base, background: "transparent", border: `2px dashed ${C.line}`, color: C.dim }} />
     );
   }
   const c = COL_OF[ch];
   return (
-    <div
-      onClick={onClick}
+    <Element
+      {...interaction}
       title={title || NAME_OF[ch]}
       style={{
         ...base,
@@ -231,7 +236,7 @@ function Disc({ ch, size = 38, faded, ring, hidden, onClick, title }) {
       }}
     >
       {ch}
-    </div>
+    </Element>
   );
 }
 
@@ -384,7 +389,7 @@ function PlayableGame() {
             <span style={{ width: 22, color: C.accent, fontSize: 12.5, textAlign: "right", fontWeight: 700 }}>{attemptNo}</span>
             <div style={{ display: "flex", gap: 6 }}>
               {guess.map((ch, i) => (
-                <Disc key={i} ch={ch} size={30} ring={i === guess.indexOf(null)} onClick={() => clearSlot(i)} title={ch ? "klick zum Entfernen" : "nächstes Feld"} />
+                <Disc key={i} ch={ch} size={30} ring={i === guess.indexOf(null)} onClick={ch ? () => clearSlot(i) : undefined} title={ch ? `Feld ${i + 1}: ${NAME_OF[ch]} entfernen` : `Feld ${i + 1}: leer`} />
               ))}
             </div>
             <span style={{ marginLeft: "auto", fontSize: 12, color: C.dim }}>

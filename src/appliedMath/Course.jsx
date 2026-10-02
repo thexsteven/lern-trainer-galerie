@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { allTasks, capstones, coreUnits, courses, diagnostics, units } from "./data.js";
+import { allTasks, capstones, coreUnits, courses, diagnostics, semesterTopics, units } from "./data.js";
 import { exams } from "./exams.js";
-import { STORAGE_KEY, changeSession, checkTask, emptyState, examAnswer, finishExam, latestSession, loadState, localDay, openTask, remaining, selfPoints, startExam, trainingGoal } from "./model.js";
+import { STORAGE_KEY, grade, chapterStats, changeSession, checkTask, emptyState, examAnswer, finishExam, latestSession, loadState, localDay, openTask, remaining, selfPoints, startExam } from "./model.js";
 import { Contours, Graph, Optimization, PointCloud, Region } from "./Visuals.jsx";
 import "./math.css";
 
@@ -36,11 +36,20 @@ export function Source({value}) {
   return <details className="am-source"><summary>Quelle · Kapitel {value.chapter}, S. {value.printed}</summary><p>{value.file} · Kapitel/Abschnitt {value.chapter} · gedruckt {value.printed} · PDF {value.pdf}</p></details>;
 }
 
-export default function Course({index=0,storage=window.localStorage}) {
+export default function Course({index=0,storage=window.localStorage,learningControl,learningSession,learningProgress,onStartRound,onRoundChange,onLearningResult}) {
   const {state,update,warning}=useMathState(storage);
   const course=courses[index];
-  const [tab,setTab]=useState(index===4?"workshop":index===0&&!Object.keys(state.diagnostics).length?"diagnosis":"learn");
+  const [tab,setTab]=useState(learningSession||units.some(unit=>unit.id===new URLSearchParams(window.location.search).get("familie")&&courses[index].chapters.includes(unit.chapter))?"learn":index===4?"workshop":index===0&&!Object.keys(state.diagnostics).length?"diagnosis":"learn");
   const [reset,setReset]=useState(false);
+  const switchTab=(next)=>{
+    if(!["learn","progress"].includes(next)){
+      const pending=[learningProgress?.activeSession,...Object.values(learningProgress?.pausedSessions||{})];
+      for(const session of pending){
+        if(session?.action.trainerSlug===course.slug&&session.mode==="assessment"&&session.round&&!session.round.helpUsed)learningControl?.updateRound(session.id,{...session.round,helpUsed:true});
+      }
+    }
+    setTab(next);
+  };
   // Mounting with an existing exam is a resumed/reloaded run, never a fresh one.
   useEffect(()=>{
     update(s=>s.activeExam?{...s,activeExam:{...s.activeExam,interrupted:true}}:s);
@@ -54,30 +63,31 @@ export default function Course({index=0,storage=window.localStorage}) {
     <header className="am-header"><div className="am-header-top"><p className="eyebrow">ANGEWANDTE MATHEMATIK · TRAINER {index+1} / 5</p>{!state.activeExam&&<details className="am-course-switch"><summary>Trainer wechseln</summary><nav className="am-course-nav" aria-label="Die fünf Mathe-Trainer">{courses.map((item,i)=><a key={item.slug} href={`/trainer/${item.slug}`} aria-current={i===index?"page":undefined}>{i+1} · {item.title}</a>)}</nav></details>}</div><h1>{course.title}</h1><p>{index===4?"Auf Papier rechnen. Unter Zeitdruck üben. Deinen Fortschritt einschätzen.":"Ein Thema nach dem anderen. Verstehen, selbst rechnen und sicherer werden."}</p><span className="am-badge">{index===4?"60 Minuten pro Prüfung":"10–20 Minuten pro Lerneinheit"}</span>
     </header>
     {warning&&<p className="am-warning" role="alert">{warning}</p>}
+    {learningProgress?.warning&&<p className="am-warning" role="alert">{learningProgress.warning}</p>}
     {state.activeExam?<ExamRun state={state} update={update}/>:<>
       <div className="am-tabs" role="navigation" aria-label="Trainerbereiche">
-        {index<4&&<button aria-pressed={tab==="learn"} onClick={()=>setTab("learn")}>Lerneinheiten</button>}
-        {index<4&&<><button aria-pressed={tab==="diagnosis"} onClick={()=>setTab("diagnosis")}>Vorwissen prüfen</button><button aria-pressed={tab==="capstone"} onClick={()=>setTab("capstone")}>Zusammenhängender Abschluss</button></>}
-        <button aria-pressed={tab==="progress"} onClick={()=>setTab("progress")}>Leistungsübersicht</button>
-        {index===4&&<button aria-pressed={tab==="workshop"} onClick={()=>setTab("workshop")}>Probeklausuren</button>}
-        <button aria-pressed={tab==="notes"} onClick={()=>setTab("notes")}>A4-Merkzettelhilfe</button>
-        <button aria-pressed={tab==="sources"} onClick={()=>setTab("sources")}>Quellen & Abdeckung</button>
+        {index<4&&<button aria-pressed={tab==="learn"} onClick={()=>switchTab("learn")}>Lerneinheiten</button>}
+        {index<4&&<><button aria-pressed={tab==="diagnosis"} onClick={()=>switchTab("diagnosis")}>Vorwissen prüfen</button><button aria-pressed={tab==="capstone"} onClick={()=>switchTab("capstone")}>Zusammenhängender Abschluss</button></>}
+        <button aria-pressed={tab==="progress"} onClick={()=>switchTab("progress")}>Leistungsübersicht</button>
+        {index===4&&<button aria-pressed={tab==="workshop"} onClick={()=>switchTab("workshop")}>Probeklausuren</button>}
+        <button aria-pressed={tab==="notes"} onClick={()=>switchTab("notes")}>A4-Merkzettelhilfe</button>
+        <button aria-pressed={tab==="sources"} onClick={()=>switchTab("sources")}>Quellen & Abdeckung</button>
       </div>
-      {tab==="learn"&&<Learning index={index} state={state} update={update}/>}
+      {tab==="learn"&&<Learning index={index} state={state} update={update} learningControl={learningControl} learningSession={learningSession} learningProgress={learningProgress} onStartRound={onStartRound} onRoundChange={onRoundChange} onLearningResult={onLearningResult}/>}
       {tab==="diagnosis"&&<Diagnosis index={index} state={state} update={update}/>}
       {tab==="capstone"&&<TaskCard task={capstones[index]} state={state} update={update}/>}
-      {tab==="progress"&&<Progress state={state}/>}
+      {tab==="progress"&&<Progress state={state} learningProgress={learningProgress}/>}
       {tab==="workshop"&&<Workshop state={state} update={update}/>}
       {tab==="notes"&&<Notes state={state} update={update}/>}
       {tab==="sources"&&<Sources/>}
-      <footer className="am-footer"><p>Lokal gespeichert · Keine Notengarantie · Fehlerrechnung und Dreifachintegrale sind ergänzende Vertiefungen.</p>
-        {!reset?<button onClick={()=>setReset(true)}>Mathe-Lernstand zurücksetzen …</button>:<div><p>Nur der Lernstand für Angewandte Mathematik wird gelöscht, einschließlich Prüfungsnachweisen und Merkzettel. Andere Trainer und Fokuslisten bleiben erhalten.</p><button onClick={()=>{update(()=>emptyState());setReset(false);}}>Nur Mathe-Lernstand löschen</button><button onClick={()=>setReset(false)}>Abbrechen</button></div>}
+      <footer className="am-footer"><p>Übungsdaten lokal im Browser · Keine Notengarantie · Pflichtumfang: belegte Differentialrechnung. Weitere Themen und Probeklausuren sind ergänzend.</p>
+        {!reset?<button onClick={()=>setReset(true)}>Mathe-Lernstand zurücksetzen …</button>:<div><p>Nur ergänzende Mathe-Übungsdaten, Probeklausuren und Merkzettel werden gelöscht. Einheitsabschlüsse in der Übersicht bleiben erhalten.</p><button onClick={()=>{update(()=>emptyState());setReset(false);}}>Nur Mathe-Lernstand löschen</button><button onClick={()=>setReset(false)}>Abbrechen</button></div>}
       </footer>
     </>}
   </main>;
 }
 
-function Learning({index,state,update}) {
+function Learning({index,state,update,learningControl,learningSession,learningProgress,onStartRound,onRoundChange,onLearningResult}) {
   const relevant=units.filter(unit=>courses[index].chapters.includes(unit.chapter)).sort((a,b)=>a.chapter-b.chapter||(a.id.endsWith("topologie")?-1:b.id.endsWith("topologie")?1:0));
   const initial=()=>{
     const requested=new URLSearchParams(window.location.search).get("familie");
@@ -88,12 +98,28 @@ function Learning({index,state,update}) {
   };
   const [selected,setSelected]=useState(()=>initial().id);
   const current=relevant.find(unit=>unit.id===selected) || relevant[0];
+  const targetId=`mathe-${current.id}`;
+  const session=learningSession?.action.targetId===targetId?learningSession:null;
+  const unitProgress=learningProgress?.unitProgress?.find(item=>item.id===targetId);
+  const [assessment,setAssessment]=useState(Boolean(learningSession));
+  useEffect(()=>{
+    if(assessment)return;
+    const pending=session||learningProgress?.pausedSessions?.[targetId];
+    if(pending?.mode==="assessment"&&pending.round&&!pending.round.helpUsed)learningControl?.updateRound(pending.id,{...pending.round,helpUsed:true});
+  },[assessment,targetId,session?.id,learningProgress?.pausedSessions?.[targetId]?.id]);
+  useEffect(()=>{
+    const linked=relevant.find(unit=>`mathe-${unit.id}`===learningSession?.action.targetId);
+    if(linked){setSelected(linked.id);setAssessment(true);}
+  },[learningSession?.id]);
+  useEffect(()=>{
+    if(session&&!session.round?.tasks?.length)onRoundChange?.(createMathRound(current));
+  },[session?.id,session?.round?.tasks?.length]);
   const newTask=current.tasks.findIndex(task=>task.independent&&!state.sessions[task.id]);
   const [stage,setStage]=useState(()=>(state.read.includes(initial().id)||initial().tasks.some(task=>state.sessions[task.id])||new URLSearchParams(window.location.search).has("familie"))&&newTask>=0?newTask+2:0);
   const selectedTask=current.tasks[stage-2];
   const nextUnit=relevant[relevant.findIndex(unit=>unit.id===current.id)+1];
   const select=(unitId)=>{
-    setSelected(unitId);setStage(0);
+    setSelected(unitId);setStage(0);setAssessment(false);
     update(s=>({...s,selection:{...s.selection,[index]:unitId}}));
   };
   const fresh=()=>{
@@ -101,18 +127,21 @@ function Learning({index,state,update}) {
     if(next>=0)setStage(next+2);
   };
   return <div className="am-learning">
-    <label className="am-mobile-unit">Dein Thema<select value={selected} onChange={e=>select(e.target.value)}>{relevant.map(unit=><option key={unit.id} value={unit.id}>{unit.supplementary?"Vertiefung":`Kap. ${unit.chapter}`} · {unit.title}</option>)}</select></label>
-    <aside className="am-unit-list"><h2>Dein Lernpfad</h2><p>Kleine Schritte, ohne Zugangssperren.</p>{relevant.map(unit=><button key={unit.id} aria-pressed={unit.id===current.id} onClick={()=>select(unit.id)}><span>{unit.supplementary?"Vertiefung":`Kap. ${unit.chapter} · ${unit.id}`}</span>{unit.title}{state.due[unit.id]?.at<=Date.now()&&<small>Wiederholung fällig</small>}</button>)}</aside>
-    <div className="am-unit"><div className="am-panel"><p className="eyebrow">{current.supplementary?"VERTIEFUNG · PRÜFUNGSRELEVANZ NICHT BELEGT":`KAPITEL ${current.chapter} · KERNSTOFF`}</p><h2>{current.title}</h2><details className="am-context"><summary>Voraussetzungen & Quelle</summary><p>Voraussetzungen: {current.prerequisites.join(", ")}. Du kannst jederzeit zur Diagnose wechseln.</p><Source value={current.source}/></details>
-      <p className="am-step-caption">Schritt {stage+1} von 6 <span>{stage<2?"Verstehen":stage<4?"Mit Unterstützung üben":"Selbst anwenden"}</span></p>
+    <label className="am-mobile-unit">Dein Thema<select value={selected} onChange={e=>select(e.target.value)}>{relevant.map(unit=><option key={unit.id} value={unit.id}>{semesterTopics[unit.id]?"Pflicht":`Ergänzung · Kap. ${unit.chapter}`} · {unit.title}</option>)}</select></label>
+    <aside className="am-unit-list"><h2>Dein Lernpfad</h2><p>Kleine Schritte, ohne Zugangssperren.</p>{relevant.map(unit=><button key={unit.id} aria-pressed={unit.id===current.id} onClick={()=>select(unit.id)}><span>{semesterTopics[unit.id]?`Pflicht · ${unit.id}`:`Ergänzung · ${unit.id}`}</span>{unit.title}{state.due[unit.id]?.at<=Date.now()&&<small>Wiederholung fällig</small>}</button>)}</aside>
+    <div className="am-unit"><div className="am-panel"><p className="eyebrow">{semesterTopics[current.id]?"AKTUELLES SEMESTER · DIFFERENTIALRECHNUNG":"ERGÄNZUNG · KEIN PFLICHTNACHWEIS"}</p><h2>{current.title}</h2>
+      {semesterTopics[current.id]&&<p>{semesterTopics[current.id]}. Eigene ergänzende Übungen aus dem bestehenden Trainer; Originalquellen stehen an den Aufgaben.</p>}
+      {semesterTopics[current.id]&&onStartRound&&<div className="am-actions"><button onClick={()=>{if(session?.round)onRoundChange({...session.round,helpUsed:true});setAssessment(false);}}>Erklären & üben</button><button className="am-primary" onClick={()=>{onStartRound(targetId,"assessment",createMathRound(current));setAssessment(true);}}>{session?session.mode==="assessment"?"Nachweisrunde fortsetzen":"Wiederholung fortsetzen":"Nachweisrunde starten"}</button><span>{Math.min(2,unitProgress?.cleanRuns||0)}/2 Nachweise · {unitProgress?.attempts||0} Versuche · {unitProgress?.completedRuns||0} vollständig</span></div>}
+      <details className="am-context"><summary>Voraussetzungen & Quelle</summary><p>Voraussetzungen: {current.prerequisites.join(", ")}. Du kannst jederzeit zur Diagnose wechseln.</p><Source value={current.source}/></details>
+      {!assessment&&<><p className="am-step-caption">Schritt {stage+1} von 6 <span>{stage<2?"Verstehen":stage<4?"Mit Unterstützung üben":"Selbst anwenden"}</span></p>
       <div className="am-steps" aria-label="Lernschritte">{["1 Erklärung","2 Beispiel","3 Leicht","4 Gestützt","5 Selbstständig","6 Transfer"].map((name,i)=><button key={name} aria-pressed={stage===i} onClick={()=>setStage(i)}>{name}</button>)}</div>
       {stage===0&&<><p>{current.explanation}</p><button className="am-primary" onClick={()=>{update(s=>({...s,read:[...new Set([...s.read,current.id])]}));setStage(1);}}>Gelesen · zum Beispiel</button><p>Lesen zählt nicht als Beherrschung.</p></>}
       {stage===1&&<><h3>Durchgerechnetes Beispiel</h3><p className="am-formula">{current.example}</p><button className="am-primary" onClick={()=>setStage(2)}>Jetzt selbst einsetzen</button></>}
       {newTask>=0&&stage<4&&state.read.includes(current.id)&&<p><button onClick={fresh}>Neue Aufgabe ohne Hilfe starten</button></p>}
-    </div>
-    {selectedTask&&<TaskCard key={selectedTask.id} task={selectedTask} state={state} update={update} onNext={stage<5?()=>setStage(stage+1):nextUnit?()=>select(nextUnit.id):undefined} nextLabel={stage===5?"Zur nächsten Lerneinheit":"Zum nächsten Lernschritt"}/>}
+    </>} </div>
+    {assessment&&session?.round?.tasks?.length?<MathAssessment round={session.round} mode={session.mode} onChange={onRoundChange} onAbort={()=>{const result=onLearningResult?.({outcome:"aborted"});if(result?.accepted)setAssessment(false);}} onComplete={()=>{const result=onLearningResult?.({outcome:"completed",verification:"automatic"});if(result?.accepted)setAssessment(false);}}/>:selectedTask&&<TaskCard key={selectedTask.id} task={selectedTask} state={state} update={update} onNext={stage<5?()=>setStage(stage+1):nextUnit?()=>select(nextUnit.id):undefined} nextLabel={stage===5?"Zur nächsten Lerneinheit":"Zum nächsten Lernschritt"}/>}
     {stage===5&&!nextUnit&&<p className="am-end-note">Du bist bei der letzten Lerneinheit. Deinen Stand und fällige Wiederholungen findest du in der Leistungsübersicht.</p>}
-    {stage<2&&["2.1","2.2"].includes(current.id)&&<Contours/>}{stage<2&&current.chapter===4&&<Graph/>}{stage<2&&current.chapter===7&&<Optimization/>}{stage<2&&current.id==="9.2"&&<PointCloud/>}{stage<2&&current.id==="8.2"&&<Region/>}
+    {!assessment&&stage<2&&["2.1","2.2"].includes(current.id)&&<Contours/>}{!assessment&&stage<2&&current.chapter===4&&<Graph/>}{!assessment&&stage<2&&current.chapter===7&&<Optimization/>}{!assessment&&stage<2&&current.id==="9.2"&&<PointCloud/>}{!assessment&&stage<2&&current.id==="8.2"&&<Region/>}
     </div>
   </div>;
 }
@@ -124,7 +153,7 @@ export function TaskCard({task,state,update,onNext,nextLabel="Zum nächsten Lern
   const result=run.feedback;
   const markHelp=(solution=false)=>update(s=>changeSession(s,task.id,{helped:true,...(solution?{solution:true}:{hint:true})}));
   return <section className="am-panel am-exercise"><p className="eyebrow">{task.stage || "DIAGNOSE"} · {task.own?"EIGENE AUFGABENVARIANTE":"SKRIPTAUFGABE"}</p><h3>Rechne zuerst auf Papier</h3><p className="am-prompt">{task.prompt}</p><Source value={task.source}/>
-    <p className="am-status">{run.known?"Bekannte Aufgabe: kein neuer Nachweis.":task.independent?"Neue Aufgabe: der erste gültige Versuch ohne Hilfe zählt.":"Übung: zählt als bearbeitet, nicht als neuer Kapitel-Nachweis."} {run.helped&&"Hilfe genutzt."}</p>
+    <p className="am-status">{run.known?"Bekannte Übungsaufgabe. Nachweise entstehen in eigenen Nachweisrunden.":task.independent?"Übungsaufgabe: die erste gültige Abgabe wird in der Übungshistorie festgehalten.":"Übung: zählt als bearbeitet."} {run.helped&&"Hilfe genutzt."}</p>
     {task.id==="4.1-1"&&<Graph variant="polynomial"/>}
     <AnswerFields task={task} answers={run.answers} result={result} onChange={(i,value)=>update(s=>changeSession(s,task.id,{answers:{...latestSession(s,task.id).answers,[i]:value},feedback:null}))}/>
     <div className="am-actions"><button className="am-primary" onClick={()=>update(s=>checkTask(s,task))}>Zwischenschritte prüfen</button><button onClick={()=>markHelp()}>Gezielter Hinweis</button><button onClick={()=>markHelp()}>Kein Ansatz</button><button onClick={()=>markHelp(true)}>Lösung anzeigen</button></div>
@@ -156,21 +185,22 @@ function Diagnosis({index,state,update}) {
   </section>;
 }
 
-function Progress({state}) {
-  const goal=trainingGoal(state,coreUnits);
+function Progress({state,learningProgress}) {
+  const chapters=chapterStats(state,coreUnits);
   const sessions=allTasks.flatMap(task=>(state.sessions[task.id]||[]).map(run=>({task,run})));
   const worked=new Set(sessions.filter(({run})=>run.checks>0).map(({task})=>task.id)).size;
   const assisted=new Set(sessions.filter(({run})=>run.helped&&run.feedback?.score===run.feedback?.total&&run.checks>0).map(({task})=>task.id)).size;
   const first=new Set(sessions.filter(({run})=>!run.known&&run.firstUnaided&&run.firstScore===run.firstTotal&&run.checks>0).map(({task})=>task.id)).size;
   const confirmed=new Set(sessions.filter(({run})=>run.confirmed).map(({task})=>task.id)).size;
   const due=Object.entries(state.due).filter(([,value])=>value.at<=Date.now());
-  return <section className="am-panel"><h2>{goal.reached?"Trainingsziel erreicht":"Dein Leistungsnachweis wächst mit dem Rechnen"}</h2><p>Vorgeschlagener konservativer Maßstab, keine validierte Vorhersage der Klausurnote und keine Garantie für 85 %.</p>
+  return <section className="am-panel"><h2>Dein Abschlussfortschritt</h2><p>{learningProgress?.examProgress?.find(item=>item.id==="mathe")?.progressPercent||0} % · Zwei vollständige, fehlerfreie Nachweisrunden pro Pflicht-Einheit. Gleicher Tag und bekannte Aufgaben zählen. Selbst bewertete Begründungen bleiben getrennt.</p>
+    {learningProgress&&<details><summary>Nachweisrunden im Verlauf</summary>{learningProgress.sessions.filter(run=>run.examId==="mathe"&&run.roundModelVersion===1).slice(-10).reverse().map(run=><p key={run.id}>{run.targetId} · {new Date(run.completedAt).toLocaleDateString("de-DE")} · {run.clean?"Fehlerfrei · Nachweis zählt":run.completed?"Vollständig · kein fehlerfreier Nachweis":"Abgebrochen"}</p>)}</details>}
     <dl className="am-metrics"><div><dt>Einheiten gelesen</dt><dd>{state.read.length}</dd></div><div><dt>Aufgaben bearbeitet</dt><dd>{worked}</dd></div><div><dt>Mit Hilfe gelöst</dt><dd>{assisted}</dd></div><div><dt>Erstmals ohne Hilfe gelöst</dt><dd>{first}</dd></div><div><dt>Später erneut bestätigt</dt><dd>{confirmed}</dd></div></dl>
-    <h3>Jedes Kapitel mindestens 80 % auf neuen Aufgaben ohne Hilfe</h3><p>Nur erste gültige Abgaben selbstständiger und Transferaufgaben zählen. Fehler bleiben im Nenner. Lesefortschritt und Lösungen liefern keine Punkte; kleine Stichproben sind schwache Evidenz.</p>
-    <div className="am-table-wrap"><table><thead><tr><th>Kapitel</th><th>Rechenpunkte</th><th>Neue Aufgaben</th><th>Quote</th><th>Alle Kernfamilien geübt</th></tr></thead><tbody>{goal.chapters.map(ch=><tr key={ch.chapter}><th>{ch.chapter}</th><td>{ch.earned}/{ch.possible}</td><td>{ch.count}{ch.count<5?" · kleine Stichprobe":""}</td><td>{ch.percent===null?"Noch kein Nachweis":`${ch.percent} %`}</td><td>{ch.practiced?"Ja":"Noch nicht"}</td></tr>)}</tbody></table></div>
-    <h3>Drei unterschiedliche Probeklausuren: jeweils mindestens 90/100</h3><p>{goal.qualifying.length}/3 gültige neue Nachweise. {goal.examsPassed?"Letzte Prüfung an einem späteren Tag bestätigt.":"Die letzte Prüfung muss an einem späteren Tag stattfinden. Nur erlaubte Hilfsmittel, höchstens 60 Minuten, ohne Unterbrechung; bekannte Varianten zählen nicht."}</p>
+    <h3>Bisherige Übungsbeobachtungen nach Kapitel</h3><p>Nur erste gültige Abgaben selbstständiger und Transferaufgaben zählen. Fehler bleiben im Nenner. Lesefortschritt und Lösungen liefern keine Punkte; kleine Stichproben sind schwache Evidenz.</p>
+    <div className="am-table-wrap"><table><thead><tr><th>Kapitel</th><th>Rechenpunkte</th><th>Neue Aufgaben</th><th>Quote</th><th>Alle Kernfamilien geübt</th></tr></thead><tbody>{chapters.map(ch=><tr key={ch.chapter}><th>{ch.chapter}</th><td>{ch.earned}/{ch.possible}</td><td>{ch.count}{ch.count<5?" · kleine Stichprobe":""}</td><td>{ch.percent===null?"Noch kein Nachweis":`${ch.percent} %`}</td><td>{ch.practiced?"Ja":"Noch nicht"}</td></tr>)}</tbody></table></div>
+    <h3>Zusätzliche Probeklausuren</h3><p>Die gespeicherten Prüfungen bleiben als ergänzende Übung erhalten. Sie sind keine Voraussetzung für den Abschluss der aktuellen Pflicht-Einheiten.</p>
     <h3>Fehlerwiederholung und lokale Fälligkeiten</h3><p>Wiederholungen nach 1, 3 und 7 Tagen. Keine Benachrichtigungen. {due.length} Familien jetzt fällig.</p>
-    {Object.entries(state.due).map(([id,value])=>{const unit=units.find(u=>u.id===id);if(!unit)return null;const course=courses.find(c=>c.chapters.includes(unit.chapter));const fresh=unit.tasks.find(t=>t.independent&&!state.sessions[t.id]);return <p key={id}><a href={`/trainer/${course.slug}?familie=${encodeURIComponent(id)}`}>{unit.title}</a> · {new Date(value.at).toLocaleDateString("de-DE")} · {fresh?"Neue Aufgabe ohne Hilfe verfügbar":"Nur bekannte Aufgaben verfügbar; kein neuer Nachweis"}</p>;})}
+    {Object.entries(state.due).map(([id,value])=>{const unit=units.find(u=>u.id===id);if(!unit)return null;const course=courses.find(c=>c.chapters.includes(unit.chapter));const fresh=unit.tasks.find(t=>t.independent&&!state.sessions[t.id]);return <p key={id}><a href={`/trainer/${course.slug}?familie=${encodeURIComponent(id)}`}>{unit.title}</a> · {new Date(value.at).toLocaleDateString("de-DE")} · {fresh?"Neue Aufgabe ohne Hilfe verfügbar":"Bekannte Aufgaben erneut üben"}</p>;})}
     {!Object.keys(state.due).length&&<p>Noch keine Wiederholung fällig: zuerst eine Aufgabe rechnen.</p>}
     <h3>Prüfungsprotokoll</h3>{state.examHistory.map((run,i)=><p key={i}>{exams.find(e=>e.id===run.id)?.title} · {localDay(run.startedAt)} · automatisch {run.auto}/80 · selbstbewertet {selfPoints(run)}/20 · Gesamt {run.auto+selfPoints(run)}/100 (gemischte Bewertung){run.known?" · bekannt":" · erstmalig"}{run.interrupted?" · unterbrochen, kein Zielnachweis":""}</p>)}
   </section>;
@@ -200,7 +230,7 @@ function ExamRun({state,update}) {
   const task=exam.tasks[run.index] || exam.tasks[0];
   const seconds=Math.ceil(remaining(run,now)/1000);
   return <section className="am-panel"><div className="am-exam-head"><h2>{exam.title}</h2><strong role="timer" aria-label="Verbleibende Prüfungszeit">{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</strong></div><p>Aufgabe {run.index+1}/5 · je 20 Punkte (16 automatisch, 4 später selbstbewertet). Noch keine Bewertung.</p>
-    {run.interrupted&&<p className="am-warning">Unterbrochener/fortgesetzter Lauf: Die Zeit läuft weiter. Dieser Lauf zählt nicht für das Trainingsziel.</p>}
+    {run.interrupted&&<p className="am-warning">Unterbrochener/fortgesetzter Lauf: Die Zeit läuft weiter. Dieser Lauf bleibt als unterbrochene Probeklausur in deiner Übungshistorie.</p>}
     {run.known&&<p>Bekannte Variante: kein neuer Leistungsnachweis.</p>}
     <div className="am-actions">{exam.tasks.map((item,i)=><button key={item.id} aria-pressed={i===run.index} onClick={()=>update(s=>({...s,activeExam:{...s.activeExam,index:i}}))}>{i+1} · {item.title}</button>)}</div>
     <h3>{task.title}</h3><p className="am-prompt">{task.prompt}</p>{task.sources.map(src=><Source key={src.chapter} value={src}/>)}
@@ -237,8 +267,34 @@ function Notes({state,update}) {
 }
 
 function Sources() {
-  return <section className="am-panel"><h2>Quellen, Abdeckung und offene Stoffabgrenzung</h2><p>Leitquelle: Dürrschnabel, Mathematik III / Angewandte Mathematik, MOS-TINF25A, T4INF2001, Stand 29.08.2026. Keine PDFs werden hier öffentlich kopiert. Die vorhandene HTML-Lernlandkarte dient als Orientierung; fachliche Angaben wurden mit den PDFs abgeglichen.</p><p>Termin laut Skript, gedruckt iv / PDF 4: 23.11.2026, 09:00 Uhr, 60 Minuten, handschriftlich; Taschenrechner und handgeschriebenes beidseitiges A4-Blatt erlaubt. Nicht unabhängig aktuell bestätigt.</p><p>Differentialgleichungen stehen nur in der allgemeinen Modulbeschreibung; ausgearbeitetes Kapitel fehlt. Prüfungsumfang offen. Fehlerfortpflanzung und Dreifachintegrale aus Heine sind Vertiefung mit unbelegter Prüfungsrelevanz. Das fachfremde tasks/1_Grundlagen.pdf gehört nicht zu diesem Kurs.</p>
+  return <section className="am-panel"><h2>Quellen, Abdeckung und offene Stoffabgrenzung</h2><p>Der bestehende ergänzende Aufgabenbestand stammt aus Dürrschnabel, Mathematik III / Angewandte Mathematik, MOS-TINF25A, T4INF2001, Stand 29.08.2026. Keine PDFs werden hier öffentlich kopiert. Die vorhandene HTML-Lernlandkarte dient als Orientierung; fachliche Angaben wurden mit den PDFs abgeglichen.</p><p>Termin laut Skript, gedruckt iv / PDF 4: 23.11.2026, 09:00 Uhr, 60 Minuten, handschriftlich; Taschenrechner und handgeschriebenes beidseitiges A4-Blatt erlaubt. Nicht unabhängig aktuell bestätigt.</p><p>Differentialgleichungen stehen nur in der allgemeinen Modulbeschreibung; ausgearbeitetes Kapitel fehlt. Prüfungsumfang offen. Die aktuellen Pflicht-Einheiten richten sich nach Heines Differential-Skript und Übung 1, einschließlich Fehleränderung. Dreifachintegrale bleiben ergänzend. Das fachfremde tasks/1_Grundlagen.pdf gehört nicht zu diesem Kurs.</p>
     <p>Fachliche Korrektur: Im Hauptskript, S. 34 / PDF 38, liefert das Regressionssystem des Beispiels 6.1 tatsächlich β₀=1/3 und β₁=3/2. Die dort gedruckten Koeffizienten sind falsch. Weitere Präzisierungen: strikte Konvexität braucht Rang; positiv definite Hesse ist hinreichend, nicht notwendig für ein Minimum.</p>
     <div className="am-table-wrap"><table><thead><tr><th>Kapitel / Familie</th><th>Lernziel</th><th>Quelle</th><th>Trainer / Test</th></tr></thead><tbody>{units.map(unit=><tr key={unit.id}><th>{unit.id}</th><td>{unit.title}</td><td>{unit.source.file}<br/>Kap. {unit.source.chapter}, S. {unit.source.printed}, PDF {unit.source.pdf}</td><td>{courses.find(c=>c.chapters.includes(unit.chapter))?.title}<br/>{unit.supplementary?"Vertiefung":`Vorstufe, Anwendung, selbstständig, Transfer; Probeklausuren A/B/C (Kap. ${unit.chapter})`}</td></tr>)}</tbody></table></div>
+  </section>;
+}
+
+export function createMathRound(unit) {
+  const tasks = unit.id === "1.1" || unit.id === "3.fehler" ? [unit.tasks[1], unit.tasks[2]] : unit.tasks.filter(task => task.independent);
+  return { tasks, answers: {}, results: [], finished: false };
+}
+
+function MathAssessment({round,mode,onChange,onComplete,onAbort}) {
+  const assessment=mode==="assessment";
+  const answers=round.answers||{};
+  const results=round.results||[];
+  const check=(task)=>{
+    const feedback=grade(task,answers[task.id]);
+    if(!feedback.valid){onChange({...round,invalidTask:task.id});return;}
+    const previous=results.find(item=>item.id===task.id);
+    const correct=feedback.score===feedback.total;
+    const next=[...results.filter(item=>item.id!==task.id),{id:task.id,correct,firstCorrect:previous?.firstCorrect??correct,firstAttempt:!previous,helpUsed:Boolean(round.helpUsed),feedback}];
+    onChange({...round,invalidTask:null,results:next,finished:next.length===round.tasks.length});
+  };
+  return <section className="am-panel"><p className="eyebrow">{assessment?"NACHWEISRUNDE · SELBSTSTÄNDIG & TRANSFER":"WIEDERHOLUNG · MIT HILFEN"}</p><h3>Zwei Aufgaben, eine vollständige Runde</h3><p>{results.length}/{round.tasks.length} Aufgaben abgegeben. Die erste gültige Abgabe entscheidet; schriftliche Herleitungen werden nicht automatisch bewertet.</p>
+    {!assessment&&<p>Diese Wiederholung ist eine Lernrunde und erhöht den Abschlussfortschritt nicht. Hinweise und Lösungen stehen an jeder Aufgabe bereit.</p>}
+    {assessment&&round.helpUsed&&<p className="am-warning">Für diese Runde wurde Lernmaterial geöffnet. Sie zählt nicht als selbstständiger Nachweis.</p>}
+    {results.some(result=>!result.firstCorrect)&&<p className="am-warning">Diese Runde enthält einen Fehler und zählt nicht als fehlerfreier Nachweis. Du kannst sie vollständig bearbeiten.</p>}
+    {round.tasks.map(task=>{const result=results.find(item=>item.id===task.id);return <section key={task.id} className="am-exercise"><h4>{task.stage}</h4><p>{task.prompt}</p><Source value={task.source}/>{!assessment&&<details onToggle={event=>{if(event.currentTarget.open)onChange({...round,helpUsed:true});}}><summary>Hinweise und Lösung</summary>{task.fields.map(field=><p key={field.label}>{field.label}: {field.hint}</p>)}{task.solution.map((step,index)=><p key={index}>{step}</p>)}</details>}<AnswerFields task={task} answers={answers[task.id]} disabled={Boolean(result?.correct)} result={result?.feedback} onChange={(index,value)=>onChange({...round,answers:{...answers,[task.id]:{...answers[task.id],[index]:value}}})}/><button className="am-primary" disabled={result?.correct} onClick={()=>check(task)}>Antwort prüfen</button>{round.invalidTask===task.id&&<p role="alert">Bitte alle Felder als gültige Zahlen oder Brüche ausfüllen. Noch kein Versuch gezählt.</p>}{result&&<p role="status">{result.correct?"Alle geprüften Rechenschritte stimmen.":"Noch nicht richtig. Korrigieren ist möglich; die Erstbewertung bleibt erhalten."}</p>}</section>;})}
+    <button className="am-primary" disabled={!round.finished} onClick={onComplete}>{assessment?"Runde abschließen":"Wiederholung abschließen"}</button><button onClick={onAbort}>Runde abbrechen und Verlauf speichern</button>
   </section>;
 }

@@ -344,6 +344,7 @@ const TAG_COLORS = {
 // ---------------------------------------------------------------------------
 export default function MergeSortTrainer() {
   const [inputText, setInputText] = useState("8, 3, 4, 0, 7, 9, 1, 6, 5, 2");
+  const [inputError, setInputError] = useState("");
   const [committedInput, setCommittedInput] = useState([8, 3, 4, 0, 7, 9, 1, 6, 5, 2]);
   const [stepIdx, setStepIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -370,23 +371,22 @@ export default function MergeSortTrainer() {
   };
 
   const applyInput = () => {
-    const parsed = inputText
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter((x) => x.length > 0)
-      .map(Number)
-      .filter((x) => !Number.isNaN(x));
-    if (parsed.length >= 1 && parsed.length <= 16) {
-      setCommittedInput(parsed);
-      setStepIdx(0);
-      setPlaying(false);
-    }
+    const tokens = inputText.split(/[,\s]+/).filter(Boolean);
+    const parsed = tokens.map(Number);
+    const invalid = parsed.findIndex((value) => !Number.isFinite(value));
+    if (invalid >= 0) { setInputError(`„${tokens[invalid]}“ ist ungültig. Bitte eine endliche Zahl eingeben.`); return; }
+    if (parsed.length < 1 || parsed.length > 16) { setInputError("Bitte 1 bis 16 Werte eingeben."); return; }
+    setInputError("");
+    setCommittedInput(parsed);
+    setStepIdx(0);
+    setPlaying(false);
   };
 
   const randomize = () => {
     const n = 6 + Math.floor(Math.random() * 5);
     const arr = Array.from({ length: n }, () => Math.floor(Math.random() * 100));
     setInputText(arr.join(", "));
+    setInputError("");
     setCommittedInput(arr);
     setStepIdx(0);
     setPlaying(false);
@@ -415,6 +415,7 @@ export default function MergeSortTrainer() {
         <input
           style={styles.input}
           value={inputText}
+          aria-label="Zu sortierende Werte" aria-invalid={Boolean(inputError)} aria-describedby="merge-input-help"
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && applyInput()}
           placeholder="z. B. 8, 3, 4, 0, 7"
@@ -426,6 +427,8 @@ export default function MergeSortTrainer() {
           Zufall
         </button>
       </section>
+      <p id="merge-input-help" style={{ color: C.textDim }}>1–16 endliche Zahlen, durch Komma oder Leerzeichen getrennt. Dezimalzahlen mit Punkt eingeben.</p>
+      {inputError && <p role="alert">{inputError}</p>}
 
       {/* Array-Visualisierung */}
       <ArrayView step={step} />

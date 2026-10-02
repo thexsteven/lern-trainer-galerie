@@ -158,6 +158,6 @@ const units = [
   },
 ];
 
-export default function SystemnaheProgrammierungLernreise({ onLearningResult }) {
-  return <CourseTrainer course="Systemnahe Programmierung 1" title="Hardware nah denken" subtitle="Von eingebetteten Systemen über Rechnerarchitekturen bis zu Maschinencode, Assembler und C." units={units} onLearningResult={onLearningResult} />;
+export default function SystemnaheProgrammierungLernreise(props) {
+  return <CourseTrainer course="Systemnahe Programmierung 1" title="Hardware nah denken" subtitle="Von eingebetteten Systemen über Rechnerarchitekturen bis zu Maschinencode, Assembler und C." units={units} targetIds={["systemnah-embedded", "systemnah-architektur", "systemnah-sprachen"]} {...props} />;
 }

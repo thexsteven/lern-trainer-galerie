@@ -229,6 +229,7 @@ const C = {
 
 export default function QuickSortTrainer() {
   const [inputText, setInputText] = useState("5, 6, 4, 1, 2, 3, 7");
+  const [inputError, setInputError] = useState("");
   const [committed, setCommitted] = useState([5, 6, 4, 1, 2, 3, 7]);
   const [stepIdx, setStepIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -253,21 +254,20 @@ export default function QuickSortTrainer() {
     setPlaying(false);
   };
   const applyInput = () => {
-    const parsed = inputText
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .map(Number)
-      .filter((x) => !Number.isNaN(x));
-    if (parsed.length >= 1 && parsed.length <= 14) {
-      setCommitted(parsed);
-      reset();
-    }
+    const tokens = inputText.split(/[,\s]+/).filter(Boolean);
+    const parsed = tokens.map(Number);
+    const invalid = parsed.findIndex((value) => !Number.isFinite(value));
+    if (invalid >= 0) { setInputError(`„${tokens[invalid]}“ ist ungültig. Bitte eine endliche Zahl eingeben.`); return; }
+    if (parsed.length < 1 || parsed.length > 14) { setInputError("Bitte 1 bis 14 Werte eingeben."); return; }
+    setInputError("");
+    setCommitted(parsed);
+    reset();
   };
   const randomize = () => {
     const n = 6 + Math.floor(Math.random() * 4);
     const arr = Array.from({ length: n }, () => Math.floor(Math.random() * 50));
     setInputText(arr.join(", "));
+    setInputError("");
     setCommitted(arr);
     reset();
   };
@@ -292,6 +292,7 @@ export default function QuickSortTrainer() {
         <input
           style={styles.input}
           value={inputText}
+          aria-label="Zu sortierende Werte" aria-invalid={Boolean(inputError)} aria-describedby="quick-input-help"
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && applyInput()}
           placeholder="z. B. 5, 6, 4, 1, 2, 3, 7"
@@ -299,6 +300,8 @@ export default function QuickSortTrainer() {
         <button style={styles.btnGhost} onClick={applyInput}>Übernehmen</button>
         <button style={styles.btnGhost} onClick={randomize}>Zufall</button>
       </section>
+      <p id="quick-input-help" style={{ color: C.textDim }}>1–14 endliche Zahlen, durch Komma oder Leerzeichen getrennt. Dezimalzahlen mit Punkt eingeben.</p>
+      {inputError && <p role="alert">{inputError}</p>}
 
       <ArrayView step={step} />
 

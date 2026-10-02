@@ -1,14 +1,39 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { examDiagnostics } from "../examDiagnostics.js";
 import "./examDiagnostic.css";
 
-export default function ExamDiagnostic({ item, learningSession, onLearningResult }) {
+export default function ExamDiagnostic({ item, learningSession, onRoundChange, onLearningResult }) {
   const diagnostic = examDiagnostics[item?.diagnosticId];
-  const variant = learningSession?.action?.variant || 0;
-  const questions = useMemo(() => diagnostic?.variants[variant % diagnostic.variants.length] || [], [diagnostic, variant]);
-  const [answers, setAnswers] = useState(() => Array(questions.length).fill(null));
-  const [result, setResult] = useState(null);
+  const [variant] = useState(learningSession?.action?.variant || 0);
+  const draft = learningSession?.round?.diagnosticId === item?.diagnosticId ? learningSession.round : null;
+  const [roundId] = useState(() => draft?.roundId || learningSession?.id || `diagnostic:${item?.diagnosticId}:${crypto.randomUUID()}`);
+  const [startedAt] = useState(() => draft?.startedAt || learningSession?.startedAt || Date.now());
+  const [questions] = useState(() => draft?.questions || (diagnostic?.variants[variant % diagnostic.variants.length] || []).map(([question, choices, answer]) => {
+    const order = choices.map((_, index) => index);
+    for (let index = order.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [order[index], order[randomIndex]] = [order[randomIndex], order[index]];
+    }
+    return [question, order.map((index) => choices[index]), order.indexOf(answer)];
+  }));
+  const [answers, setAnswers] = useState(() => draft?.answers || Array(questions.length).fill(null));
+  const [result, setResult] = useState(draft?.result || null);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveWarning, setSaveWarning] = useState("");
+  const onRoundChangeRef = useRef(onRoundChange);
+  onRoundChangeRef.current = onRoundChange;
+  const sessionId = learningSession?.id;
+  const requiredTaskIds = useMemo(() => questions.map((_, index) => `${item?.diagnosticId}:${variant}:${index}`), [questions, item?.diagnosticId, variant]);
+  const taskResults = useMemo(() => result ? questions.map((question, index) => ({
+    id: requiredTaskIds[index], correct: answers[index] === question[2], firstAttempt: true, helpUsed: false,
+  })) : [], [result, questions, requiredTaskIds, answers]);
+
+  useEffect(() => {
+    if (!sessionId || !diagnostic) return;
+    onRoundChangeRef.current?.({ diagnosticId: item.diagnosticId, roundId, startedAt, variant, questions, answers, result,
+      requiredTaskIds, taskResults, attemptStarted: answers.some((answer) => answer !== null) });
+  }, [sessionId, diagnostic, item?.diagnosticId, roundId, startedAt, variant, questions, answers, result, requiredTaskIds, taskResults]);
 
   if (!diagnostic) return <main className="diagnostic-shell"><h1>Diagnose nicht verfügbar</h1></main>;
 
@@ -17,16 +42,31 @@ export default function ExamDiagnostic({ item, learningSession, onLearningResult
     setResult({ correct, score: Math.round((correct / questions.length) * 100) });
   };
 
-  const save = () => {
-    if (!result || saved) return;
-    setSaved(true);
-    onLearningResult?.({
-      outcome: result.score >= 80 ? "correct" : "incorrect",
-      verified: true,
-      firstAttempt: true,
-      helpUsed: false,
-      score: result.score,
-    });
+  const save = async () => {
+    if (!result || saved || saving) return;
+    setSaving(true);
+    setSaveWarning("");
+    try {
+      const response = await onLearningResult?.({
+        roundId,
+        startedAt,
+        requiredTaskIds,
+        taskResults,
+        completed: true,
+        mode: "diagnostic",
+        outcome: result.score >= 80 ? "correct" : "incorrect",
+        verified: true,
+        firstAttempt: true,
+        helpUsed: false,
+        score: result.score,
+      });
+      if (response?.accepted === true && response.persisted !== false) setSaved(true);
+      else setSaveWarning("Die Auswertung wurde nicht dauerhaft gespeichert. Bitte versuche es erneut.");
+    } catch {
+      setSaveWarning("Die Auswertung konnte nicht gespeichert werden. Bitte versuche es erneut.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const level = result?.score < 60 ? "Grundlagen aufbauen" : result?.score < 80 ? "Lücken gezielt schließen" : "Anwendung und Transfer";
@@ -68,8 +108,9 @@ export default function ExamDiagnostic({ item, learningSession, onLearningResult
           <p>Dein Ergebnis</p>
           <strong>{result.score} %</strong>
           <h2>{level}</h2>
-          <p>{result.correct} von {questions.length} Antworten stimmen. Ein einzelner Test beendet keine Wiederholung; dafür sind zwei kalte Nachweise an verschiedenen Tagen nötig.</p>
-          <button className="diagnostic-primary" disabled={saved} onClick={save}>{saved ? "Gespeichert" : "Auswertung speichern"}</button>
+          <p>{result.correct} von {questions.length} Antworten stimmen. Diese Diagnose hilft bei der Wahl deines nächsten Lernschritts. Eine Lerneinheit ist nach zwei fehlerfreien Nachweisrunden abgeschlossen.</p>
+          <button className="diagnostic-primary" disabled={saved || saving} onClick={save}>{saved ? "Gespeichert" : saving ? "Wird gespeichert …" : "Auswertung speichern"}</button>
+          {saveWarning && <p role="alert">{saveWarning}</p>}
         </section>
       )}
     </main>

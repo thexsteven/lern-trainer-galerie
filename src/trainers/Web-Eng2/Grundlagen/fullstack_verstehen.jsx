@@ -68,7 +68,7 @@ const entryQuestions = [
   { question: "Eine API antwortet mit JSON. Ist damit schon eine Benutzerkarte gezeichnet?", choices: ["Ja, JSON ist die Oberfläche", "Nein, das Frontend muss die Daten darstellen", "Weiß ich noch nicht"], answer: 1, explanation: "JSON transportiert strukturierte Daten. Das Frontend macht daraus die sichtbare Oberfläche." },
 ];
 
-export default function FullstackVerstehen({ onLearningResult }) {
+export default function FullstackVerstehen(props) {
   const [answers, setAnswers] = useState({});
   const [checked, setChecked] = useState(false);
 
@@ -116,7 +116,7 @@ export default function FullstackVerstehen({ onLearningResult }) {
           </div>
         </section>
       </section>
-      <CourseTrainer title="Vom Klick zur Antwort" subtitle="Lies die Grundlagen, löse das Quiz und wende den Ablauf selbst an. Bei Fehlern folgt ein Zwischenschritt mit gezieltem Hinweis. Die Transferaufgabe kommt ohne Hilfe aus. Fortschritt und Notizen innerhalb dieser Einheit gelten nur für die aktuelle Sitzung." course="Web Engineering 2" units={units} onLearningResult={onLearningResult} />
+      <CourseTrainer {...props} title="Vom Klick zur Antwort" subtitle="Lies die Grundlagen, löse das Quiz und wende den Ablauf selbst an. Bei Fehlern folgt ein Zwischenschritt mit gezieltem Hinweis. Die Transferaufgabe kommt ohne Hilfe aus." course="Web Engineering 2" units={units} targetIds={["web-request-response"]} />
     </>
   );
 }

@@ -14,12 +14,13 @@ export function loadProgress(storage = window.localStorage) {
 export function saveProgress(progress, storage = window.localStorage) {
   try {
     storage?.setItem(STORAGE_KEY, JSON.stringify(progress));
+    return Boolean(storage);
   } catch {
-    // Learning remains available if storage is blocked.
+    return false;
   }
 }
 
-export function recordAttempt(progress, item, result) {
+export function recordAttempt(progress, item, result, { assessment = "unknown", helpUsed = false } = {}) {
   const previous = progress.attempts[item.id] || { count: 0, correct: 0, wrong: 0, unsure: 0 };
   return {
     attempts: {
@@ -31,6 +32,8 @@ export function recordAttempt(progress, item, result) {
         wrong: previous.wrong + (result === "wrong" ? 1 : 0),
         unsure: previous.unsure + (result === "unsure" ? 1 : 0),
         lastResult: result,
+        lastAssessment: assessment,
+        lastHelpUsed: helpUsed,
         lastAnsweredAt: new Date().toISOString(),
       },
     },
@@ -57,17 +60,12 @@ export function nextIndex(items, progress, currentIndex) {
 
 export function getStats(items, progress) {
   const answered = items.filter((item) => progress.attempts[item.id]?.count > 0);
-  const knowledge = items.reduce((sum, item) => {
-    const result = progress.attempts[item.id]?.lastResult;
-    return sum + (result === "correct" ? 1 : result === "unsure" ? 0.5 : 0);
-  }, 0);
-  const correct = Object.values(progress.attempts).reduce((sum, attempt) => sum + attempt.correct, 0);
-  const wrong = Object.values(progress.attempts).reduce((sum, attempt) => sum + attempt.wrong, 0);
+  const attempts = answered.map((item) => progress.attempts[item.id]);
   return {
     answered: answered.length,
-    correct,
-    wrong,
-    percent: items.length ? Math.round((answered.length / items.length) * 100) : 0,
-    knowledgePercent: items.length ? Math.round((knowledge / items.length) * 100) : 0,
+    automaticCorrect: attempts.filter((attempt) => attempt.lastAssessment === "automatic" && attempt.lastResult === "correct" && !attempt.lastHelpUsed).length,
+    selfRated: attempts.filter((attempt) => attempt.lastAssessment === "self").length,
+    assisted: attempts.filter((attempt) => attempt.lastHelpUsed).length,
+    unclassified: attempts.filter((attempt) => !attempt.lastAssessment || attempt.lastAssessment === "unknown").length,
   };
 }

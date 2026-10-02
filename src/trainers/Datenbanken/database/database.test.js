@@ -31,6 +31,27 @@ test("progress persists attempts and prioritizes weak answers", () => {
   assert.ok(priorityFor(item, wrong) > priorityFor(item, correct));
   saveProgress(wrong, storage);
   assert.deepEqual(loadProgress(storage), wrong);
-  assert.equal(getStats([item], wrong).percent, 100);
-  assert.equal(getStats([item], wrong).knowledgePercent, 0);
+  assert.equal(getStats([item], wrong).answered, 1);
+  assert.equal(getStats([item], wrong).automaticCorrect, 0);
+  assert.equal(getStats([item], wrong).unclassified, 1);
+});
+
+test("activity distinguishes self-ratings, checked answers and solution help", () => {
+  const [self, checked, assisted, legacy] = allItems;
+  let progress = recordAttempt({ attempts: {} }, self, "correct", { assessment: "self" });
+  progress = recordAttempt(progress, checked, "correct", { assessment: "automatic" });
+  progress = recordAttempt(progress, assisted, "correct", { assessment: "automatic", helpUsed: true });
+  progress = recordAttempt(progress, legacy, "correct");
+  assert.deepEqual(getStats([self, checked, assisted, legacy], progress), {
+    answered: 4, automaticCorrect: 1, selfRated: 1, assisted: 1, unclassified: 1,
+  });
+  assert.deepEqual(getStats([self], progress), {
+    answered: 1, automaticCorrect: 0, selfRated: 1, assisted: 0, unclassified: 0,
+  });
+  progress = recordAttempt(progress, checked, "wrong", { assessment: "automatic" });
+  assert.equal(getStats([checked], progress).automaticCorrect, 0);
+});
+
+test("storage failure is reported instead of acknowledging persistence", () => {
+  assert.equal(saveProgress({ attempts: {} }, { setItem() { throw new Error("full"); } }), false);
 });

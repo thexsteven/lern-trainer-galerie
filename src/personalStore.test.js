@@ -86,3 +86,19 @@ test("persists the collapsed sidebar preference while accepting old saved data",
   assert.equal(restored.sidebarCollapsed, true);
   assert.equal(restored.exams[0].archivedAt, undefined);
 });
+
+test("failed exam writes preserve the previous saved version and can be retried", () => {
+  const storage = memoryStorage();
+  const store = createPersonalStore(storage);
+  const exam = { id: "test", title: "Original", date: "2026-12-10", itemSlugs: ["merge-sort"] };
+  assert.deepEqual(store.saveExam(exam), { accepted: true, persisted: true });
+  const write = storage.setItem;
+  storage.setItem = () => { throw new Error("Storage full"); };
+  assert.deepEqual(store.saveExam({ ...exam, title: "Updated" }), { accepted: false, persisted: false });
+  assert.equal(store.getSnapshot().exams[0].title, "Original");
+  assert.deepEqual(store.saveExam({ ...exam, id: "new" }), { accepted: false, persisted: false });
+  assert.equal(store.getSnapshot().exams.length, 1);
+  storage.setItem = write;
+  assert.deepEqual(store.saveExam({ ...exam, title: "Updated" }), { accepted: true, persisted: true });
+  assert.equal(createPersonalStore(storage).getSnapshot().exams[0].title, "Updated");
+});

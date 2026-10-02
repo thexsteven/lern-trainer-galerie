@@ -24,7 +24,8 @@ const labItem = (slug, title, course, topic, goal, duration, url, accent) => ({
 });
 
 const catalog = [
-  reactItem("diagnose-mathe-3", "Kalter Einstiegstest · Mathematik 3", "Mathematik 3", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "mathe" }),
+  reactItem("fsa-pruefungstraining", "FSA · Wörter, DEA & reguläre Ausdrücke", "Formale Sprachen & Automaten", "Prüfungstraining", "Wörter, DEA und reguläre Ausdrücke verstehen und in freien Aufgabenrunden selbst anwenden.", "10–15 Min.", "./trainers/Formale Sprachen & Automaten/Endliche Automaten/FsaPruefungstraining.jsx", "mint", { roundTrainer: true }),
+  reactItem("diagnose-mathe-3", "Kalter Einstiegstest · Angewandte Mathematik", "Angewandte Mathematik", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "mathe" }),
   reactItem("diagnose-netztechnik", "Kalter Einstiegstest · Netztechnik", "Kommunikations- und Netztechnik", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "netz" }),
   reactItem("diagnose-systemnahe-programmierung", "Kalter Einstiegstest · Systemnahe Programmierung", "Systemnahe Programmierung 1", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "orange", { diagnosticId: "systemnah" }),
   reactItem("diagnose-formale-sprachen", "Kalter Einstiegstest · Formale Sprachen", "Formale Sprachen & Automaten", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "mint", { diagnosticId: "fsa" }),

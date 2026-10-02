@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 
   Der Markdown-Walkthrough (docs/lernpfad/01-frontend-appjs.md im
   ai-prompt-lib-Projekt) als interaktive Quest:
-  - 7 Levels + Boss-Fight, sequentiell freigeschaltet (Fokus!)
+  - 7 frei wählbare Levels + Boss-Fight
   - XP-System mit Rängen, Fortschritt bleibt via localStorage erhalten
   - Code-Zeilen mit ● sind klickbar und verraten ihr WARUM
   - Experimente (in der echten App ausprobieren) + Quizfragen schalten
@@ -767,8 +767,8 @@ function L7({ ctx }) {
 function BossContent({ ctx }) {
   return (
     <>
-      <P style={{ fontSize: 16.5 }}>Fünf Fragen. Alles Gelernte, keine Hilfen. Besiegst du den
-        Boss, ist Modul 1 offiziell abgeschlossen. 🗡️</P>
+      <P style={{ fontSize: 16.5 }}>Fünf Fragen zum Projektbeispiel. Versuche sie zuerst ohne Nachschlagen.
+        Dieser Boss-Fight ist eine Übung; die XP sind kein Prüfungsnachweis. 🗡️</P>
       <Quiz id="bq1" ctx={ctx}
         q={<>Warum wirft <K>api()</K> bei <K>!res.ok</K> selbst eine Exception?</>}
         options={[
@@ -863,7 +863,7 @@ const levelDone = (lv, st) =>
   Object.entries(lv.quiz).every(([qid, correct]) => st.quiz[qid] === correct);
 
 const RANKS = [
-  [0, "Noch ahnungslos 🐣"], [10, "Konsolen-Neuling 🌱"], [35, "fetch-Lehrling 📡"],
+  [0, "Bereit für den Einstieg 🌱"], [10, "Konsolen-Neuling 🌱"], [35, "fetch-Lehrling 📡"],
   [70, "DOM-Bändiger 🛠️"], [110, "Event-Meister ⚙️"], [150, "app.js-Boss 👑"],
 ];
 const rankFor = (xp) => RANKS.reduce((r, [min, name]) => (xp >= min ? name : r), RANKS[0][1]);
@@ -871,14 +871,16 @@ const rankFor = (xp) => RANKS.reduce((r, [min, name]) => (xp >= min ? name : r),
 // ─── Persistenz ──────────────────────────────────────────────────────────────
 const LS_KEY = "appjs-level-quest-v1";
 function useSaved(initial) {
+  const [warning, setWarning] = useState("");
   const [val, setVal] = useState(() => {
     try { return { ...initial, ...JSON.parse(localStorage.getItem(LS_KEY) || "{}") }; }
     catch { return initial; }
   });
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch { /* egal */ }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(val)); setWarning(""); }
+    catch { setWarning("Speichern fehlgeschlagen. Der Quest-Stand bleibt nur in dieser geöffneten Sitzung erhalten."); }
   }, [val]);
-  return [val, setVal];
+  return [val, setVal, warning];
 }
 
 // ─── Belohnungs-Overlay ──────────────────────────────────────────────────────
@@ -907,7 +909,7 @@ function Reward({ reward, onClose }) {
           „{reward.title}" geschafft!
         </div>
         <div style={{ color: C.dim, fontSize: 13, marginTop: 10 }}>
-          Gönn dir eine kurze Belohnung ☕ — dein Gehirn speichert in Pausen.
+          Wenn du möchtest, mach eine kurze Pause. ☕
         </div>
       </div>
     </div>
@@ -960,13 +962,11 @@ function Intro({ onStart, st }) {
       <Card>
         <h2 style={{ color: C.text, fontSize: 19, margin: "0 0 12px" }}>🕹️ Spielregeln</h2>
         <ul style={{ color: C.text, fontSize: 15, lineHeight: 1.8, margin: 0, paddingLeft: 20 }}>
-          <li><b>Ein Level pro Sitzung</b> (15–25 Min). Nicht mehr — dein Gehirn speichert in Pausen.</li>
-          <li>Levels schalten sich <b>nacheinander</b> frei: Erledige die ⚡ Experimente in der
-            echten App und beantworte die ❓ Quizfragen.</li>
-          <li>Nach jedem Level: <b>bewusst belohnen</b> (Kaffee, Musik, 1 Runde irgendwas).
-            Klingt albern, konditioniert aber wirklich.</li>
-          <li>Fortschritt wird automatisch gespeichert (localStorage) — du kannst jederzeit
-            weitermachen.</li>
+          <li><b>Wähle ein Level</b>, das zu deinem nächsten Lernschritt passt. Plane dafür etwa 15–25 Minuten ein.</li>
+          <li>Alle Levels sind frei erreichbar. Die ⚡ Experimente gehören zum
+            Projektbeispiel; die ❓ Quizfragen kannst du hier bearbeiten.</li>
+          <li>XP belohnen bearbeitete Übungen und selbst bestätigte Experimente. Sie beschreiben keinen Einheitenabschluss.</li>
+          <li>Der Quest-Stand wird in diesem Browser gespeichert. Falls das nicht gelingt, erscheint eine Meldung.</li>
         </ul>
         <div style={{ marginTop: 14, padding: "10px 14px", background: C.panel2,
           borderRadius: 10, color: C.dim, fontSize: 13.5, lineHeight: 1.6 }}>
@@ -1002,7 +1002,7 @@ function Finale({ xp }) {
       <Card style={{ borderColor: C.gold, textAlign: "center" }}>
         <div style={{ fontSize: 54 }}>🏆</div>
         <h1 style={{ color: C.gold, fontSize: 28, margin: "8px 0 4px" }}>
-          Modul 1 abgeschlossen — {xp}/{TOTAL_XP} XP
+          {xp === TOTAL_XP ? "Quest vollständig bearbeitet" : "Die Projektbausteine verbinden"} — {xp}/{TOTAL_XP} XP
         </h1>
         <div style={{ color: C.text, fontSize: 15.5 }}>Rang: <b>{rankFor(xp)}</b></div>
       </Card>
@@ -1054,7 +1054,7 @@ function Finale({ xp }) {
 // ─── Haupt-Komponente ────────────────────────────────────────────────────────
 export default function AppJsLevelQuest() {
   const INITIAL = { tasks: {}, quiz: {}, celebrated: [], view: "intro" };
-  const [st, setSt] = useSaved(INITIAL);
+  const [st, setSt, saveWarning] = useSaved(INITIAL);
   const [reward, setReward] = useState(null);
 
   const toggleTask = (id) =>
@@ -1080,14 +1080,7 @@ export default function AppJsLevelQuest() {
 
   const doneMap = Object.fromEntries(ALL.map((lv) => [lv.id, levelDone(lv, st)]));
   const xp = ALL.reduce((s, lv) => s + (doneMap[lv.id] ? lv.xp : 0), 0);
-  const allLevelsDone = LEVELS.every((lv) => doneMap[lv.id]);
   const bossDone = doneMap.boss;
-
-  const isUnlocked = (lv) => {
-    if (lv.id === "boss") return allLevelsDone;
-    const i = LEVELS.findIndex((l) => l.id === lv.id);
-    return i === 0 || doneMap[LEVELS[i - 1].id];
-  };
 
   const active = ALL.find((lv) => lv.id === st.view) || null;
 
@@ -1098,16 +1091,15 @@ export default function AppJsLevelQuest() {
     }
   };
 
-  const chip = (label, view, unlocked, done, title) => (
-    <button key={view} className="aq-lvlbtn" disabled={!unlocked}
-      onClick={() => unlocked && setView(view)} title={title}
+  const chip = (label, view, done, title) => (
+    <button key={view} className="aq-lvlbtn" aria-label={title} aria-pressed={st.view === view}
+      onClick={() => setView(view)} title={title}
       style={{ minWidth: 40, height: 40, borderRadius: 12, fontFamily: sans, fontSize: 15,
-        fontWeight: 700, cursor: unlocked ? "pointer" : "not-allowed", flexShrink: 0,
+        fontWeight: 700, cursor: "pointer", flexShrink: 0,
         background: st.view === view ? C.accent : done ? "rgba(134,239,172,0.12)" : C.panel2,
-        color: st.view === view ? "#1a1a00" : done ? C.good : unlocked ? C.text : C.dim,
-        border: `1px solid ${st.view === view ? C.accent : done ? C.good : C.line}`,
-        opacity: unlocked ? 1 : 0.45 }}>
-      {unlocked ? (done && st.view !== view ? "✓" : label) : "🔒"}
+        color: st.view === view ? "#1a1a00" : done ? C.good : C.text,
+        border: `1px solid ${st.view === view ? C.accent : done ? C.good : C.line}` }}>
+      {done && st.view !== view ? "✓" : label}
     </button>
   );
 
@@ -1137,16 +1129,18 @@ export default function AppJsLevelQuest() {
             <div style={{ color: C.dim, fontSize: 12.5, whiteSpace: "nowrap" }}>{rankFor(xp)}</div>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10, overflowX: "auto", paddingBottom: 2 }}>
-            {chip("🗺", "intro", true, false, "Übersicht & Spielregeln")}
-            {LEVELS.map((lv) => chip(String(lv.nr), lv.id, isUnlocked(lv), doneMap[lv.id],
+            {chip("🗺", "intro", false, "Übersicht & Spielregeln")}
+            {LEVELS.map((lv) => chip(String(lv.nr), lv.id, doneMap[lv.id],
               `Level ${lv.nr}: ${lv.title}`))}
-            {chip("🐉", "boss", allLevelsDone, bossDone, "Boss-Fight (alle Levels nötig)")}
-            {chip("🏆", "final", bossDone, false, "Finale: Mental Model & Verbindungen")}
+            {chip("🐉", "boss", bossDone, "Boss-Fight: fünf Übungsfragen")}
+            {chip("🏆", "final", false, "Finale: Mental Model & Verbindungen")}
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 940, margin: "0 auto", padding: "28px 20px 0" }}>
+        <p style={{ color: C.dim, fontSize: 13.5 }}>Projektbeispiel ai-prompt-library · JavaScript, FastAPI und SQLite. Ergänzende Übung zum Projektcode; keine vollständige Abdeckung der aktuellen Web-Engineering-Prüfung.</p>
+        {saveWarning && <p role="alert" style={{ color: C.gold }}>{saveWarning}</p>}
         {st.view === "intro" && <Intro st={st} onStart={() => setView("l1")} />}
         {st.view === "final" && <Finale xp={xp} />}
 
@@ -1158,7 +1152,7 @@ export default function AppJsLevelQuest() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ color: C.accent, fontFamily: mono, fontSize: 12, fontWeight: 700,
                   letterSpacing: 1.5 }}>
-                  {active.id === "boss" ? "FINALE PRÜFUNG" : `LEVEL ${active.nr} VON 7`} · {active.xp} XP
+                  {active.id === "boss" ? "BOSS-ÜBUNG" : `LEVEL ${active.nr} VON 7`} · {active.xp} XP
                 </div>
                 <h1 style={{ color: C.text, fontSize: 26, margin: "3px 0 2px", lineHeight: 1.2 }}>
                   {active.title}
@@ -1174,7 +1168,7 @@ export default function AppJsLevelQuest() {
               {doneMap[active.id] ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                   <div style={{ color: C.good, fontWeight: 700, fontSize: 15.5, flex: 1 }}>
-                    ✅ {active.id === "boss" ? "Boss besiegt — Modul 1 gemeistert!"
+                    ✅ {active.id === "boss" ? "Boss-Fragen richtig beantwortet!"
                       : `Level ${active.nr} geschafft (+${active.xp} XP)`}
                   </div>
                   <button

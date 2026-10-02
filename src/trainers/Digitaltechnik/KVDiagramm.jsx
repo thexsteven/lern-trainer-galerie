@@ -23,6 +23,7 @@ const C = {
 };
 
 const KEYFRAMES = `
+.kv-cell:focus-visible { outline: 3px solid ${C.gold}; outline-offset: 3px; }
 @keyframes pop { 0% { transform: scale(.82); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes ringpulse { 0%,100% { box-shadow: 0 0 0 3px var(--rc); } 50% { box-shadow: 0 0 0 5px var(--rc); } }
 `;
@@ -311,6 +312,7 @@ function AbleseLine({ fixed, kind = "DMF" }) {
    - onClick(minterm)
    ========================================================================= */
 function KVGrid({ values = null, chips = {}, ring = {}, tint = {}, onClick }) {
+  const Cell = onClick ? "button" : "div";
   const hdr = { display: "flex", alignItems: "center", justifyContent: "center", color: C.accent2, fontWeight: 800, fontFamily: "ui-monospace, monospace", fontSize: 13 };
   const corner = { ...hdr, color: C.dim, fontSize: 11 };
   return (
@@ -329,12 +331,15 @@ function KVGrid({ values = null, chips = {}, ring = {}, tint = {}, onClick }) {
             const myChips = chips[m] || [];
             const rc = ring[m];
             return (
-              <div
+              <Cell
                 key={ci}
+                className={onClick ? "kv-cell" : undefined}
+                type={onClick ? "button" : undefined}
+                aria-label={onClick ? `Minterm ${m}, A B C: ${bits}, Wert ${v}. Wert wechseln: 0, 1, X.` : undefined}
                 onClick={onClick ? () => onClick(m) : undefined}
                 title={`m${m} = ${bits} (A,B,C)`}
                 style={{
-                  position: "relative", height: 60, borderRadius: 10,
+                  position: "relative", height: 60, borderRadius: 10, padding: 0, font: "inherit",
                   background: bg, border: `1px solid ${C.line}`,
                   cursor: onClick ? "pointer" : "default",
                   display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -344,16 +349,16 @@ function KVGrid({ values = null, chips = {}, ring = {}, tint = {}, onClick }) {
                   animation: rc ? "ringpulse 1.1s ease-in-out infinite" : "none",
                 }}
               >
-                <div style={{ position: "absolute", top: 3, left: 5, fontSize: 9, color: C.dim, fontFamily: "ui-monospace, monospace" }}>m{m}·{bits}</div>
+                <span style={{ position: "absolute", top: 3, left: 5, fontSize: 9, color: C.dim, fontFamily: "ui-monospace, monospace" }}>m{m}·{bits}</span>
                 {values
-                  ? <div style={{ fontSize: 22, fontWeight: 800, color: valColor, fontFamily: "ui-monospace, monospace" }}>{v}</div>
-                  : <div style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: "ui-monospace, monospace" }}>{bits}</div>}
+                  ? <span style={{ fontSize: 22, fontWeight: 800, color: valColor, fontFamily: "ui-monospace, monospace" }}>{v}</span>
+                  : <span style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: "ui-monospace, monospace" }}>{bits}</span>}
                 {myChips.length > 0 && (
-                  <div style={{ position: "absolute", bottom: 4, display: "flex", gap: 3 }}>
+                  <span style={{ position: "absolute", bottom: 4, display: "flex", gap: 3 }}>
                     {myChips.map((col, i) => <span key={i} style={{ width: 8, height: 8, borderRadius: 2, background: col }} />)}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </Cell>
             );
           })}
         </React.Fragment>

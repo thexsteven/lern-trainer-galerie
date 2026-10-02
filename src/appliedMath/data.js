@@ -278,3 +278,15 @@ export const capstones = [
 
 export const allTasks = [...units.flatMap(item => item.tasks),...capstones];
 export const coreUnits = units.filter(item => !item.supplementary);
+
+// Curriculum scope verified against the current Heine material; original exercise citations stay intact.
+export const semesterTopics = {
+  "1.1": "Heine Differential-Skript S. 1–2: Definitionsbereiche, Graphen und Höhenlinien",
+  "2.1": "Heine Übung 1, Aufgaben 1 und 7: partielle und Richtungsableitungen",
+  "2.2": "Heine Übung 1, Aufgabe 7: Richtungsableitung und stärkster Anstieg",
+  "3.1": "Heine Übung 1, Aufgaben 4 und 5: Tangentialebene und totales Differential",
+  "3.3": "Heine Übung 1, Aufgabe 3: Kettenregel",
+  "5.1": "Heine Übung 1, Aufgabe 8: stationäre Punkte klassifizieren",
+  "9.1": "Heine Übung 1, Aufgabe 9: Nebenbedingungen",
+  "3.fehler": "Heine Übung 1, Aufgabe 6: Fehleränderung",
+};

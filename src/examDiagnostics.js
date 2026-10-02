@@ -1,6 +1,6 @@
 export const examDiagnostics = {
   mathe: {
-    title: "Mathematik 3 · Kalter Einstiegstest",
+    title: "Angewandte Mathematik · Kalter Einstiegstest",
     course: "Angewandte Mathematik",
     source: "Aktuelles Skript und Übung 1 zur mehrdimensionalen Differentialrechnung",
     variants: [

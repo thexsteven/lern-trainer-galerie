@@ -91,6 +91,7 @@ const COL = {
 
 export default function RadixSortTrainer() {
   const [inputText, setInputText] = useState("25, 13, 31, 23, 11, 37, 15");
+  const [inputError, setInputError] = useState("");
   const [committed, setCommitted] = useState([25, 13, 31, 23, 11, 37, 15]);
   const [stepIdx, setStepIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -113,14 +114,17 @@ export default function RadixSortTrainer() {
 
   const reset = () => { setStepIdx(0); setPlaying(false); };
   const applyInput = () => {
-    const parsed = inputText.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean)
-      .map(Number).filter((x) => Number.isInteger(x) && x >= 0 && x <= 999);
-    if (parsed.length >= 1 && parsed.length <= 12) { setCommitted(parsed); reset(); }
+    const tokens = inputText.split(/[,\s]+/).filter(Boolean);
+    const parsed = tokens.map(Number);
+    const invalid = parsed.findIndex((value) => !Number.isInteger(value) || value < 0 || value > 999);
+    if (invalid >= 0) { setInputError(`„${tokens[invalid]}“ ist ungültig. Erlaubt sind ganze Zahlen von 0 bis 999.`); return; }
+    if (parsed.length < 1 || parsed.length > 12) { setInputError("Bitte 1 bis 12 Werte eingeben."); return; }
+    setInputError(""); setCommitted(parsed); reset();
   };
   const randomize = () => {
     const n = 6 + Math.floor(Math.random() * 3);
     const arr = Array.from({ length: n }, () => Math.floor(Math.random() * 90) + 10);
-    setInputText(arr.join(", ")); setCommitted(arr); reset();
+    setInputText(arr.join(", ")); setInputError(""); setCommitted(arr); reset();
   };
 
   const atStart = stepIdx === 0;
@@ -141,12 +145,15 @@ export default function RadixSortTrainer() {
 
       <section style={styles.inputRow}>
         <input style={styles.input} value={inputText}
+          aria-label="Zu sortierende Werte" aria-invalid={Boolean(inputError)} aria-describedby="radix-input-help"
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && applyInput()}
           placeholder="z. B. 25, 13, 31, 23, 11" />
         <button style={styles.btnGhost} onClick={applyInput}>Übernehmen</button>
         <button style={styles.btnGhost} onClick={randomize}>Zufall</button>
       </section>
+      <p id="radix-input-help" style={{ color: COL.textDim }}>1–12 ganze Zahlen von 0 bis 999, durch Komma oder Leerzeichen getrennt.</p>
+      {inputError && <p role="alert">{inputError}</p>}
 
       <div style={styles.passInfo}>
         Durchlauf <strong style={{ color: COL.accent }}>{Math.min(step.pass, s)}</strong> von {s}
