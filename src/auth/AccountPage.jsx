@@ -37,12 +37,19 @@ export default function AccountPage({ mode }) {
     finally { setBusy(false); }
   };
 
-  if (mode === "profile") return <section className="page account-page">
+  if (mode === "profile") return <section className="page account-page account-settings">
     <a className="account-back" href="/">← Zurück zum Lernen</a>
+    <header className="account-heading">
+    <div className="account-avatar" aria-hidden="true">{(auth.profile?.display_name || auth.user?.email || "G").slice(0, 1).toUpperCase()}</div>
+    <div><p className="eyebrow">DEIN LERNTRAINER</p>
     <h1>{auth.user ? "Konto & Einstellungen" : "Als Gast lernen"}</h1>
-    {auth.user ? <p>{auth.user.email}</p> : <><p>Dein Lernstand bleibt in diesem Browser. Beim Löschen der Browserdaten geht er verloren.</p><div className="account-entry-actions"><a className="primary-button" href="/registrieren">Account erstellen</a><a className="secondary-button" href="/login">Anmelden</a></div></>}
+    <p>{auth.user ? auth.user.email : "Dein Lernstand bleibt auf diesem Gerät."}</p></div>
+    </header>
+    {!auth.user && <div className="account-guest-entry"><p>Mit einem Konto kannst du deinen Lernstand auf mehreren Geräten nutzen. Beim Löschen der Browserdaten geht dein Gast-Lernstand verloren.</p><div className="account-entry-actions"><a className="primary-button" href="/registrieren">Account erstellen</a><a className="secondary-button" href="/login">Anmelden</a></div></div>}
+    <div className="account-settings-grid">
     <section className="account-card" aria-labelledby="account-profile-title">
     <h2 id="account-profile-title">Dein Profil</h2>
+    <p className="account-description">{auth.user ? "Passe deinen Namen und deine Kurszugehörigkeit an." : "Wähle, welche Kursinformationen du sehen möchtest."}</p>
     <form onSubmit={(event) => { event.preventDefault(); run(async () => {
       if (auth.user) {
         const profile = { display_name: name.trim(), course: course ? "T-INF 25" : null, updated_at: new Date().toISOString() };
@@ -53,12 +60,13 @@ export default function AccountPage({ mode }) {
       setMessage("Einstellungen gespeichert.");
     }); }}>
       {auth.user && <label>Anzeigename (optional)<input maxLength={80} value={name} onChange={(event) => setName(event.target.value)} /></label>}
-      <label className="account-checkbox"><input type="checkbox" checked={course} onChange={(event) => setCourse(event.target.checked)} />Ich gehöre zum Kurs T-INF 25</label>
-      <p>Für diesen Kurs werden die gemeinsamen Prüfungstermine eingeblendet.</p>
+      <div className="account-course"><label className="account-checkbox"><input type="checkbox" checked={course} onChange={(event) => setCourse(event.target.checked)} />Ich gehöre zum Kurs T-INF 25</label>
+      <p>Zeigt die gemeinsamen Prüfungstermine dieses Kurses an.</p></div>
       <button className="primary-button" disabled={busy}>Einstellungen speichern</button>
     </form>
     {message && <p className="account-feedback" role="status">{message}</p>}
     </section>
+    <div className="account-aside">
     <section className="account-card" aria-labelledby="account-data-title">
     <h2 id="account-data-title">Deine Lerndaten</h2>
     <p>Lade eine Kopie deiner Lernstände und Einstellungen als JSON-Datei herunter.</p>
@@ -67,7 +75,9 @@ export default function AccountPage({ mode }) {
       downloadData({ ...(auth.user ? await exportAccount(auth.user) : { mode: "guest" }), local, sync_status: auth.status });
     })}>Daten exportieren</button>
     </section>
-    {auth.user ? <><div className="account-session"><p>Auf diesem Gerät angemeldet.</p><button className="secondary-button" disabled={busy} onClick={() => run(auth.signOut)}>Abmelden</button></div>
+    {auth.user && <section className="account-card account-session"><div><h2>Deine Sitzung</h2><p>Auf diesem Gerät angemeldet.</p></div><button className="secondary-button" disabled={busy} onClick={() => run(auth.signOut)}>Abmelden</button></section>}
+    </div></div>
+    {auth.user ? <>
       <details className="account-card account-danger"><summary>Account löschen</summary><p>Dein Konto und alle zugehörigen Daten werden gelöscht. Nicht synchronisierte Kontodaten in anderen Browsern müssen dort zusätzlich gelöscht werden.</p>
       <label>Zur Bestätigung LÖSCHEN eingeben<input value={deleteConfirm} onChange={(event) => setDeleteConfirm(event.target.value)} autoComplete="off" /></label>
       <button className="danger-button" disabled={busy || deleteConfirm !== "LÖSCHEN"} onClick={() => run(async () => {
