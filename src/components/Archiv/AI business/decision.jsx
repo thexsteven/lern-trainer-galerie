@@ -12,7 +12,6 @@ const PAPER = "#F4F0E8";
 const MUTED = "#6B6258";
 
 const FONTS = `
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Space+Mono:wght@400;700&display=swap');
 `;
 
 const insights = [

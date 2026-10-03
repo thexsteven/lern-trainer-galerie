@@ -1,0 +1,36 @@
+.account-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 20px; background: #111a2a; color: #e7eef9; font: 14px system-ui; }
+.account-strip span { flex: 1; overflow-wrap: anywhere; }
+.account-strip a { color: #bfe8ee; }
+.account-page, .legal-page { max-width: 780px; margin: 0 auto; padding: 32px 20px; }
+.account-page a, .legal-page a, .legal-footer a { color: #bfe8ee; }
+.account-page form { display: grid; gap: 16px; margin: 24px 0; }
+.account-page label { display: grid; gap: 8px; }
+.account-page input { padding: 12px; border: 1px solid #9ca6b4; border-radius: 8px; font: inherit; min-width: 0; }
+.account-page .account-checkbox { display: flex; align-items: center; gap: 10px; }
+.account-page .account-checkbox input { width: 20px; height: 20px; }
+.account-page button { margin: 8px 8px 8px 0; }
+.account-back { display: inline-block; margin-bottom: 16px; text-decoration: none; }
+.account-entry-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+.account-entry-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px; font-size: 15px; text-decoration: none; }
+.account-entry-actions .primary-button { color: white; }
+.account-entry-actions .secondary-button { color: var(--ink); border: 1px solid var(--line); }
+.account-entry-actions a:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.account-card { margin-top: 24px; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; }
+.account-card h2 { margin: 0 0 12px; font-size: 20px; }
+.account-card p { line-height: 1.6; }
+.account-card form { margin-bottom: 0; }
+.account-page input:not([type="checkbox"]) { background: var(--panel); color: var(--ink); border-color: var(--line); }
+.account-feedback { padding: 12px 16px; border-left: 3px solid var(--blue); background: var(--panel); border-radius: 8px; }
+.account-session { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; }
+.account-session p { color: var(--muted); }
+.account-danger summary { cursor: pointer; font-weight: 600; }
+.account-danger button:disabled { opacity: .42; cursor: not-allowed; }
+.account-password { display: flex; gap: 8px; margin-top: 8px; }
+.account-password input { flex: 1; }
+.account-password button { margin: 0; padding: 10px 14px; }
+.account-notice { margin: 16px auto; padding: 20px; max-width: 780px; border: 1px solid #93b0b8; border-radius: 12px; }
+.account-notice button { padding: 12px; margin: 8px; }
+.account-loading { padding: 32px; }
+.legal-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 24px 16px 100px; }
+.legal-page { line-height: 1.7; }
+@media (max-width: 600px) { .account-strip { padding: 10px 14px; } .account-strip span { flex-basis: 100%; order: 2; } .account-strip a:last-child { margin-left: auto; } }

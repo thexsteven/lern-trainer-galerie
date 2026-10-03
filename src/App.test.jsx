@@ -132,9 +132,28 @@ afterEach(() => {
 });
 
 describe("semester library", () => {
+  it("hides private courses from guests, including direct trainer links", () => {
+    window.history.replaceState({}, "", "/bibliothek");
+    const view = render(<App />);
+    expect(screen.queryByRole("region", { name: "Privat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Compilerbau" })).not.toBeInTheDocument();
+    view.unmount();
+    window.history.replaceState({}, "", "/trainer/pipeline-orchestrierung");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Lernangebot nicht gefunden" })).toBeVisible();
+  });
+
+  it("shows shared examination dates only for course members", () => {
+    window.history.replaceState({}, "", "/uebersicht");
+    const view = render(<App />);
+    expect(screen.queryByText(/Geplanter Prüfungstermin:/)).not.toBeInTheDocument();
+    view.rerender(<App courseMember />);
+    expect(screen.getAllByText(/Geplanter Prüfungstermin:/).length).toBeGreaterThan(0);
+  });
+
   it("orders semesters before private courses and shows the empty first semester", () => {
     window.history.replaceState({}, "", "/bibliothek");
-    render(<App />);
+    render(<App allowPrivate />);
     expect(screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"))).toEqual([
       "3. Semester", "2. Semester", "1. Semester", "Privat",
     ]);

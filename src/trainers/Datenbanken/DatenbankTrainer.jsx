@@ -141,8 +141,8 @@ function Dashboard({ progress, onStart }) {
   </div>;
 }
 
-export default function DatenbankTrainer() {
-  const [progress, setProgress] = useState(loadProgress);
+export default function DatenbankTrainer({ storage = window.localStorage }) {
+  const [progress, setProgress] = useState(() => loadProgress(storage));
   const [view, setView] = useState("overview");
   const [mode, setMode] = useState("cards");
   const [difficulty, setDifficulty] = useState("all");
@@ -161,7 +161,7 @@ export default function DatenbankTrainer() {
   const handleResult = (result, advance = true, helpUsed = false) => {
     const updated = recordAttempt(progress, item, result, { assessment: mode === "cards" || mode === "concept" ? "self" : "automatic", helpUsed });
     setProgress(updated);
-    setSaveWarning(saveProgress(updated) ? "" : "Speichern fehlgeschlagen. Diese Bewertung bleibt nur in der geöffneten Sitzung erhalten.");
+    setSaveWarning(saveProgress(updated, storage) ? "" : "Speichern fehlgeschlagen. Diese Bewertung bleibt nur in der geöffneten Sitzung erhalten.");
     if (advance && items.length > 1) setIndex(nextIndex(items, updated, safeIndex));
     else setCanContinue(true);
   };

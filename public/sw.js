@@ -1,4 +1,4 @@
-const CACHE_NAME = "lern-trainer-v2";
+const CACHE_NAME = "lern-trainer-v3";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -25,6 +25,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/compiler-parser/") || url.pathname.startsWith("/api/") || url.pathname.startsWith("/functions/") || request.headers.has("authorization")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(

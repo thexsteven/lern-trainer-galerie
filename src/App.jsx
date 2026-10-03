@@ -16,11 +16,13 @@ import { createPersonalStore } from "./personalStore.js";
 import { createLearningControl } from "./learningControl.js";
 import { getSemesterLearningProgram } from "./learningProgram.js";
 import LearningOverview from "./components/LearningOverview.jsx";
+import PrivateTrainer from "./auth/PrivateTrainer.jsx";
+import LearningLab from "./auth/LearningLab.jsx";
 import "./app.css";
 
 const modules = import.meta.glob([
   "./trainers/**/*.jsx",
-  "./components/Archiv/**/*.jsx",
+  "!./trainers/T1000/**/*.jsx",
   "./components/ExamDiagnostic.jsx",
 ]);
 const lazyModules = new Map();
@@ -76,11 +78,19 @@ function usePersonalState(store) {
 
 const systemClock = () => Date.now();
 
-export default function App({ storage = window.localStorage, learningClock = systemClock }) {
-  const catalog = useMemo(getLearningCatalog, []);
+export default function App({ storage = window.localStorage, learningClock = systemClock, allowPrivate = false, privateItems = [], courseMember = false, accountMode = false }) {
+  const catalog = useMemo(() => {
+    const items = [...getLearningCatalog(), ...privateItems];
+    return items.filter((item, index) => (item.semester !== null || allowPrivate) && items.findIndex((candidate) => candidate.slug === item.slug) === index);
+  }, [allowPrivate, privateItems]);
   const store = useMemo(() => createPersonalStore(storage), [storage]);
   const personal = usePersonalState(store);
-  const program = useMemo(getSemesterLearningProgram, []);
+  const visibleExams = personal.exams.map((exam) => ({ ...exam, itemSlugs: exam.itemSlugs.filter((slug) => allowPrivate || !["pipeline-orchestrierung", "entscheidungs-dashboard", "business-systeme", "compiler-parser"].includes(slug)) }));
+  const program = useMemo(() => {
+    const next = getSemesterLearningProgram();
+    if (!courseMember) next.exams = next.exams.map((exam) => ({ ...exam, date: null }));
+    return next;
+  }, [courseMember]);
   const learningControl = useMemo(
     () => createLearningControl({ storage, program, clock: learningClock }),
     [storage, program, learningClock],
@@ -134,6 +144,7 @@ export default function App({ storage = window.localStorage, learningClock = sys
 
   const openItem = (item, targetId) => {
     if (!item) return;
+    if (item.semester === null && !allowPrivate) return;
     store.recordOpen(item.slug);
     if (route.name !== "trainer") {
       returnPath.current = window.location.pathname + window.location.search;
@@ -168,12 +179,13 @@ export default function App({ storage = window.localStorage, learningClock = sys
   };
 
   if (route.name === "trainer") {
-    const item = findLearningItemBySlug(route.slug);
+    const item = catalog.find((candidate) => candidate.slug === route.slug);
     const requestedUnit = new URLSearchParams(window.location.search).get("einheit");
     const learningSession = learning.activeSession?.action.trainerSlug === route.slug && (!requestedUnit || learning.activeSession.action.targetId === requestedUnit) ? learning.activeSession : null;
     return <>
       <TrainerView
         item={item}
+        storage={storage}
         learningControl={learningControl}
         learningSession={learningSession}
         learningProgress={learning}
@@ -210,6 +222,7 @@ export default function App({ storage = window.localStorage, learningClock = sys
     <div className="app-shell">
       <div className={`app-layout${personal.sidebarCollapsed ? " sidebar-collapsed" : ""}`} aria-hidden={searchOpen ? "true" : undefined} inert={searchOpen ? "" : undefined}>
         <Sidebar
+          accountMode={accountMode}
           route={route}
           navigate={requestNavigation}
           onSearch={openSearch}
@@ -242,7 +255,7 @@ export default function App({ storage = window.localStorage, learningClock = sys
             {route.name === "exams" && (
               <ExamsPage
                 catalog={catalog}
-                exams={personal.exams}
+                exams={visibleExams}
                 startEditing={route.create}
                 saveExam={store.saveExam}
                 archiveExam={archiveExam}
@@ -253,7 +266,8 @@ export default function App({ storage = window.localStorage, learningClock = sys
             )}
             {route.name === "archive" && (
               <ArchivePage
-                exams={personal.exams}
+                catalog={catalog}
+                exams={visibleExams}
                 restoreExam={store.restoreExam}
                 removeExam={store.removeExam}
                 openItem={openItem}
@@ -298,7 +312,7 @@ export default function App({ storage = window.localStorage, learningClock = sys
   );
 }
 
-function Sidebar({ route, navigate, onSearch, collapsed, onToggleCollapsed, warning }) {
+function Sidebar({ route, navigate, onSearch, collapsed, onToggleCollapsed, warning, accountMode }) {
   return (
     <aside className={`sidebar${collapsed ? " collapsed" : ""}`} aria-label="Hauptnavigation">
       <button className="brand" aria-label="Zur Startseite" title={collapsed ? "Start" : undefined} onClick={() => navigate("/")}>
@@ -320,7 +334,7 @@ function Sidebar({ route, navigate, onSearch, collapsed, onToggleCollapsed, warn
       </button>
       <div className="sidebar-note">
         <span className="status-dot" />
-        <span>{warning ? "Speicherung eingeschränkt" : "Lernstand auf diesem Gerät"}<br /><small>{warning ? "Hinweis im Lernbereich beachten" : "Lokal im Browser"}</small></span>
+        <span>{warning ? "Speicherung eingeschränkt" : accountMode ? "Lernstand im Konto" : "Lernstand auf diesem Gerät"}<br /><small>{warning ? "Hinweis im Lernbereich beachten" : accountMode ? "Mit lokaler Offline-Kopie" : "Lokal im Browser"}</small></span>
       </div>
     </aside>
   );
@@ -511,7 +525,7 @@ function ExamsPage({ catalog, exams, startEditing, saveExam, archiveExam, openIt
 function ExamSection({ title, exams, editingId, catalog, onEdit, onCancel, onSave, onDirtyChange, onArchive, onOpen }) {
   return <section className="exam-section"><h2>{title}</h2><div className="exam-list">{exams.map((exam) => editingId === exam.id
     ? <ExamForm key={exam.id} catalog={catalog} exam={exam} onCancel={onCancel} onSave={onSave} onDirtyChange={onDirtyChange} />
-    : <ExamCard key={exam.id} exam={exam} onEdit={() => onEdit(exam.id)} onArchive={() => onArchive(exam)} onOpen={onOpen} />)}</div></section>;
+    : <ExamCard key={exam.id} catalog={catalog} exam={exam} onEdit={() => onEdit(exam.id)} onArchive={() => onArchive(exam)} onOpen={onOpen} />)}</div></section>;
 }
 
 function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
@@ -524,7 +538,7 @@ function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
   const [announcement, setAnnouncement] = useState("");
   const results = searchLearningCatalog(query, catalog);
   const choices = query.trim() ? results : results.slice(0, 12);
-  const availableCount = selected.filter((slug) => findLearningItemBySlug(slug)).length;
+  const availableCount = selected.filter((slug) => catalog.some((item) => item.slug === slug)).length;
   const dirty = title !== initial.title || date !== initial.date || selected.join("\0") !== initial.itemSlugs.join("\0");
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
@@ -535,7 +549,7 @@ function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
       const next = [...current];
       const [moved] = next.splice(from, 1);
       next.splice(to, 0, moved);
-      const item = findLearningItemBySlug(moved);
+      const item = catalog.find((item) => item.slug === moved);
       setAnnouncement(`${item?.title ?? "Eintrag"} an Position ${to + 1} verschoben.`);
       return next;
     });
@@ -548,7 +562,7 @@ function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
 
   return <form className="exam-form" onSubmit={submit}><div className="form-heading"><div><span className="eyebrow">{exam ? "PRÜFUNG BEARBEITEN" : "NEUER TERMIN"}</span><h2>{exam ? exam.title : "Prüfung planen"}</h2></div><button type="button" className="icon-button" aria-label="Schließen" onClick={onCancel}>×</button></div><div className="form-row"><label>Prüfungsname<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="z. B. Formale Sprachen" required /></label><label>Datum<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label></div>
     <div className="focus-editor"><div className="editor-heading"><div><span className="eyebrow">DEINE FOKUSLISTE</span><h3>Reihenfolge festlegen</h3></div><span>{selected.length} {selected.length === 1 ? "Eintrag" : "Einträge"}</span></div><div className="ordered-focus-list">{selected.map((slug, index) => {
-      const item = findLearningItemBySlug(slug);
+      const item = catalog.find((item) => item.slug === slug);
       return <div className={`focus-editor-row${item ? "" : " unavailable"}`} key={slug} onDragEnter={(event) => { event.preventDefault(); if (draggedIndex !== null) { move(draggedIndex, index); setDraggedIndex(index); } }} onDragOver={(event) => event.preventDefault()}>
         <span className="focus-position">{String(index + 1).padStart(2, "0")}</span>
         <button type="button" className="drag-handle" draggable aria-label={`${item?.title ?? slug} ziehen`} onDragStart={(event) => { setDraggedIndex(index); event.dataTransfer.effectAllowed = "move"; }} onDragEnd={() => setDraggedIndex(null)}>⠿</button>
@@ -562,16 +576,16 @@ function ExamForm({ catalog, exam, onCancel, onSave, onDirtyChange }) {
     })}</div>{!choices.length && <p className="no-choice-results">Keine passenden Trainer gefunden.</p>}<div className="form-actions"><span>{availableCount ? `${availableCount} verfügbar` : "Mindestens ein verfügbarer Trainer erforderlich"}</span><button type="button" className="secondary-button" onClick={onCancel}>Abbrechen</button><button className="primary-button" disabled={!title.trim() || !date || !availableCount}>{exam ? "Änderungen sichern" : "Speichern"}</button></div></form>;
 }
 
-function ExamCard({ exam, onEdit, onArchive, onOpen, archived = false, onRestore, onDelete }) {
-  const items = exam.itemSlugs.map(findLearningItemBySlug).filter(Boolean);
+function ExamCard({ catalog, exam, onEdit, onArchive, onOpen, archived = false, onRestore, onDelete }) {
+  const items = exam.itemSlugs.map((slug) => catalog.find((item) => item.slug === slug)).filter(Boolean);
   return <article className="exam-card"><div className="exam-date"><strong>{dateDistance(exam.date).short}</strong><span>{dateDistance(exam.date).suffix}</span></div><div className="exam-content"><span className="eyebrow">{formatExamDate(exam.date)}</span><h2>{exam.title}</h2><div className="focus-list">{items.map((item, index) => <button key={item.slug} onClick={() => onOpen(item)}><span>{String(index + 1).padStart(2, "0")}</span><span><strong>{item.title}</strong><small>{item.topic}</small></span><span>→</span></button>)}</div><div className="exam-card-actions">{archived ? <><button className="secondary-button" onClick={onRestore}>Wiederherstellen</button><button className="danger-text-button" onClick={onDelete}>Endgültig löschen</button></> : <><button className="secondary-button" onClick={onEdit}>Bearbeiten</button><button className="text-button" onClick={onArchive}>Archivieren</button></>}</div></div></article>;
 }
 
-function ArchivePage({ exams, restoreExam, removeExam, openItem }) {
+function ArchivePage({ catalog, exams, restoreExam, removeExam, openItem }) {
   const archived = exams.filter((exam) => exam.archivedAt).sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
   const [deleteExam, setDeleteExam] = useState(null);
   return <div className="page"><PageIntro eyebrow="ARCHIV" title="Archivierte Prüfungen" copy="Abgelegte Prüfungsvorbereitungen bleiben erreichbar und können jederzeit zurückkehren." />
-    {archived.length ? <div className="exam-list">{archived.map((exam) => <ExamCard key={exam.id} exam={exam} archived onRestore={() => restoreExam(exam.id)} onDelete={() => setDeleteExam(exam)} onOpen={openItem} />)}</div> : <div className="empty-card large"><div className="empty-icon">▤</div><div><strong>Dein Archiv ist leer</strong><p>Archivierte Prüfungen erscheinen hier und lassen sich später wiederherstellen.</p></div></div>}
+    {archived.length ? <div className="exam-list">{archived.map((exam) => <ExamCard key={exam.id} catalog={catalog} exam={exam} archived onRestore={() => restoreExam(exam.id)} onDelete={() => setDeleteExam(exam)} onOpen={openItem} />)}</div> : <div className="empty-card large"><div className="empty-icon">▤</div><div><strong>Dein Archiv ist leer</strong><p>Archivierte Prüfungen erscheinen hier und lassen sich später wiederherstellen.</p></div></div>}
     {deleteExam && <ConfirmDialog destructive title="Prüfung endgültig löschen?" copy={`„${deleteExam.title}“ und ihre Fokusliste werden unwiderruflich entfernt.`} confirmLabel="Endgültig löschen" onCancel={() => setDeleteExam(null)} onConfirm={() => { removeExam(deleteExam.id); setDeleteExam(null); }} />}
   </div>;
 }
@@ -665,10 +679,10 @@ class TrainerErrorBoundary extends React.Component {
   render() { return this.state.error ? <div className="trainer-error"><strong>Dieser Trainer konnte nicht geladen werden.</strong><p>Dein gespeicherter Lernstand bleibt erhalten.</p><button className="primary-button" onClick={() => window.location.reload()}>Erneut laden</button><details><summary>Technische Details</summary>{String(this.state.error.message || this.state.error)}</details></div> : this.props.children; }
 }
 
-function TrainerView({ item, pinned, onBack, backLabel, onPin, onSearch, onOverview, learningControl, learningSession, learningProgress, onStartRound, onRoundChange, onLearningResult, onOpenUnit }) {
+function TrainerView({ item, storage, pinned, onBack, backLabel, onPin, onSearch, onOverview, learningControl, learningSession, learningProgress, onStartRound, onRoundChange, onLearningResult, onOpenUnit }) {
   if (!item) return <div className="not-found"><span className="brand-mark">L</span><h1>Lernangebot nicht gefunden</h1><button className="primary-button" onClick={onBack}>Zur Startseite</button></div>;
   const Trainer = getTrainer(item);
-  return <div className="trainer-stage"><header className="trainer-bar"><button className="back-button" aria-label={backLabel === "Start" ? "Zur Startseite" : `Zur ${backLabel}`} onClick={onBack}>← <span>{backLabel}</span></button><div className="trainer-identity"><span>{item.course} · {item.topic}</span><strong>{item.title}</strong></div><button className="trainer-tool" aria-label="Lernübersicht öffnen" onClick={onOverview}>◉</button><button className="trainer-tool" aria-label="Suchen" onClick={onSearch}>⌕</button><button className={`pin-button large${pinned ? " pinned" : ""}`} aria-pressed={pinned} aria-label={pinned ? "Anheftung lösen" : "Trainer anheften"} onClick={onPin}>{pinned ? "◆" : "◇"}</button></header>{learningProgress.warning && <p className="trainer-storage-warning" role="status">{learningProgress.warning}</p>}<div className="trainer-content">{item.kind === "lab" ? <><p className="lab-context">Lernlabor · Erkundung und eigenes Üben. Diese Ansicht erzeugt keinen automatisch geprüften Abschluss.</p><iframe className="lab-frame" title={item.title} src={item.url} /></> : <TrainerErrorBoundary item={item}><Suspense fallback={<div className="trainer-loading"><span /><p>{item.title} wird geladen …</p></div>}>{Trainer ? <Trainer key={`${item.slug}:${new URLSearchParams(window.location.search).get("einheit") || ""}`} item={item} learningControl={learningControl} learningSession={learningSession} learningProgress={learningProgress} onStartRound={onStartRound} onRoundChange={onRoundChange} onLearningResult={onLearningResult} onOpenUnit={onOpenUnit} /> : <div className="trainer-error">Trainer-Modul fehlt.</div>}</Suspense></TrainerErrorBoundary>}</div></div>;
+  return <div className="trainer-stage"><header className="trainer-bar"><button className="back-button" aria-label={backLabel === "Start" ? "Zur Startseite" : `Zur ${backLabel}`} onClick={onBack}>← <span>{backLabel}</span></button><div className="trainer-identity"><span>{item.course} · {item.topic}</span><strong>{item.title}</strong></div><button className="trainer-tool" aria-label="Lernübersicht öffnen" onClick={onOverview}>◉</button><button className="trainer-tool" aria-label="Suchen" onClick={onSearch}>⌕</button><button className={`pin-button large${pinned ? " pinned" : ""}`} aria-pressed={pinned} aria-label={pinned ? "Anheftung lösen" : "Trainer anheften"} onClick={onPin}>{pinned ? "◆" : "◇"}</button></header>{learningProgress.warning && <p className="trainer-storage-warning" role="status">{learningProgress.warning}</p>}<div className="trainer-content">{item.semester === null ? <PrivateTrainer item={item} /> : item.kind === "lab" ? <><p className="lab-context">Lernlabor · Erkundung und eigenes Üben. Diese Ansicht erzeugt keinen automatisch geprüften Abschluss.</p><LearningLab item={item} /></> : <TrainerErrorBoundary item={item}><Suspense fallback={<div className="trainer-loading"><span /><p>{item.title} wird geladen …</p></div>}>{Trainer ? <Trainer key={`${item.slug}:${new URLSearchParams(window.location.search).get("einheit") || ""}`} item={item} storage={storage} learningControl={learningControl} learningSession={learningSession} learningProgress={learningProgress} onStartRound={onStartRound} onRoundChange={onRoundChange} onLearningResult={onLearningResult} onOpenUnit={onOpenUnit} /> : <div className="trainer-error">Trainer-Modul fehlt.</div>}</Suspense></TrainerErrorBoundary>}</div></div>;
 }
 
 function groupBy(items, key) {

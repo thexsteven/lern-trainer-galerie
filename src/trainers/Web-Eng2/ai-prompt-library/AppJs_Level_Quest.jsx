@@ -1,3 +1,4 @@
+import { useLearningStorage } from "../../../auth/learningStorage.jsx";
 import React, { useState, useEffect } from "react";
 
 /*
@@ -871,15 +872,16 @@ const rankFor = (xp) => RANKS.reduce((r, [min, name]) => (xp >= min ? name : r),
 // ─── Persistenz ──────────────────────────────────────────────────────────────
 const LS_KEY = "appjs-level-quest-v1";
 function useSaved(initial) {
+  const storage = useLearningStorage();
   const [warning, setWarning] = useState("");
   const [val, setVal] = useState(() => {
-    try { return { ...initial, ...JSON.parse(localStorage.getItem(LS_KEY) || "{}") }; }
+    try { return { ...initial, ...JSON.parse(storage.getItem(LS_KEY) || "{}") }; }
     catch { return initial; }
   });
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(val)); setWarning(""); }
+    try { storage.setItem(LS_KEY, JSON.stringify(val)); setWarning(""); }
     catch { setWarning("Speichern fehlgeschlagen. Der Quest-Stand bleibt nur in dieser geöffneten Sitzung erhalten."); }
-  }, [val]);
+  }, [val, storage]);
   return [val, setVal, warning];
 }
 
@@ -1053,6 +1055,7 @@ function Finale({ xp }) {
 
 // ─── Haupt-Komponente ────────────────────────────────────────────────────────
 export default function AppJsLevelQuest() {
+  const storage = useLearningStorage();
   const INITIAL = { tasks: {}, quiz: {}, celebrated: [], view: "intro" };
   const [st, setSt, saveWarning] = useSaved(INITIAL);
   const [reward, setReward] = useState(null);
@@ -1086,7 +1089,7 @@ export default function AppJsLevelQuest() {
 
   const resetAll = () => {
     if (window.confirm("Wirklich den kompletten Quest-Fortschritt löschen?")) {
-      try { localStorage.removeItem(LS_KEY); } catch { /* egal */ }
+      try { storage.removeItem(LS_KEY); } catch { /* egal */ }
       setSt(INITIAL);
     }
   };

@@ -6,6 +6,8 @@ dist/
 dist-ssr/
 public/labs/
 tmp/
+supabase/functions/account/private-content.json
+supabase/.temp/
 
 # Vercel
 .vercel/
