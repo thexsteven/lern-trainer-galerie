@@ -23,6 +23,23 @@ const labItem = (slug, title, course, topic, goal, duration, url, accent) => ({
   kind: "lab",
 });
 
+const courseSemesters = {
+  "Angewandte Mathematik": 3,
+  "Formale Sprachen & Automaten": 3,
+  "Kommunikations- und Netztechnik": 3,
+  "Systemnahe Programmierung 1": 3,
+  "Web Engineering 2": 3,
+  "Datenbanken": 3,
+  "Analysis": 2,
+  "Digitaltechnik": 2,
+  "Java": 2,
+  "Theoretische Informatik": 2,
+  "T1000": null,
+  "AI Business": null,
+  "Compilerbau": null,
+  "Enterprise Architecture": null,
+};
+
 const catalog = [
   reactItem("fsa-pruefungstraining", "FSA · Wörter, DEA & reguläre Ausdrücke", "Formale Sprachen & Automaten", "Prüfungstraining", "Wörter, DEA und reguläre Ausdrücke verstehen und in freien Aufgabenrunden selbst anwenden.", "10–15 Min.", "./trainers/Formale Sprachen & Automaten/Endliche Automaten/FsaPruefungstraining.jsx", "mint", { roundTrainer: true }),
   reactItem("diagnose-mathe-3", "Kalter Einstiegstest · Angewandte Mathematik", "Angewandte Mathematik", "Einstiegsdiagnose", "Aktuellen Stand ohne Hilfsmittel prüfen und den nächsten Lernschritt bestimmen.", "25 Min.", "./components/ExamDiagnostic.jsx", "teal", { diagnosticId: "mathe" }),
@@ -75,7 +92,7 @@ const catalog = [
   labItem("fsa-lernreise", "FSA-Lernreise", "Formale Sprachen & Automaten", "Gesamtüberblick", "Themen der Vorlesung in einer zusammenhängenden Lernreise ordnen.", "45 Min.", "/labs/fsa-lernreise/", "mint"),
   labItem("fsa-grundlagen-pruefung", "FSA-Grundlagenprüfung", "Formale Sprachen & Automaten", "Selbsttest", "Grundbegriffe und Basiskonzepte prüfungsnah abrufen.", "20 Min.", "/labs/grundlagen-pruefung/", "rose"),
   labItem("regulaere-ausdruecke-pruefung", "Reguläre Ausdrücke · Prüfung", "Formale Sprachen & Automaten", "Reguläre Sprachen", "Reguläre Ausdrücke unter Prüfungsbedingungen anwenden.", "25 Min.", "/labs/regulaere-ausdruecke-pruefung/", "rose"),
-];
+].map((item) => ({ ...item, semester: courseSemesters[item.course] }));
 
 const normalize = (value) =>
   value

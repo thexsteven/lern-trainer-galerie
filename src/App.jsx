@@ -434,7 +434,15 @@ function LibraryPage({ catalog, pins, openItem, togglePin, learning, query, setQ
   const visible = searchLearningCatalog(query, catalog).filter((item) => course === "Alle Kurse" || item.course === course);
   return <div className="page"><PageIntro eyebrow="BIBLIOTHEK" title="Alle Lernangebote" copy="Durchsuche alle Trainer, Lernlabore und Prüfungsmodule an einem Ort." />
     <div className="filter-bar"><label className="search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Thema, Kurs oder Lernziel" aria-label="Bibliothek durchsuchen" /></label><select value={course} onChange={(event) => setCourse(event.target.value)} aria-label="Kurs filtern"><option>Alle Kurse</option>{courses.map((name) => <option key={name}>{name}</option>)}</select><span className="result-count">{visible.length} Ergebnisse</span></div>
-    {visible.length ? <CatalogSections catalog={visible} pins={pins} onOpen={openItem} onPin={togglePin} learning={learning} /> : <div className="empty-card"><strong>Keine passenden Lernangebote</strong><p>Versuche einen anderen Begriff oder entferne den Kursfilter.</p></div>}
+    {visible.length ? <div className="catalog-sections">{[3, 2, 1, null].map((semester) => {
+      const items = visible.filter((item) => item.semester === semester);
+      if (!items.length && (semester !== 1 || query.trim() || course !== "Alle Kurse")) return null;
+      const title = semester === null ? "Privat" : `${semester}. Semester`;
+      return <section key={semester ?? "private"} aria-label={title}>
+        <SectionHeader title={title} />
+        {items.length ? <CatalogSections catalog={items} pins={pins} onOpen={openItem} onPin={togglePin} learning={learning} /> : <div className="empty-card"><strong>Noch keine Lernangebote</strong><p>Hier wartet noch Wissen im Dunkeln. Der erste Trainer macht das Licht an.</p></div>}
+      </section>;
+    })}</div> : <div className="empty-card"><strong>Keine passenden Lernangebote</strong><p>Versuche einen anderen Begriff oder entferne den Kursfilter.</p></div>}
   </div>;
 }
 

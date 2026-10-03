@@ -131,6 +131,34 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
+describe("semester library", () => {
+  it("orders semesters before private courses and shows the empty first semester", () => {
+    window.history.replaceState({}, "", "/bibliothek");
+    render(<App />);
+    expect(screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"))).toEqual([
+      "3. Semester", "2. Semester", "1. Semester", "Privat",
+    ]);
+    expect(within(screen.getByRole("region", { name: "3. Semester" })).getByRole("heading", { name: "Datenbanken" })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "2. Semester" })).getByRole("heading", { name: "Analysis" })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Privat" })).getByRole("heading", { name: "Compilerbau" })).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "1. Semester" })).getByText("Hier wartet noch Wissen im Dunkeln. Der erste Trainer macht das Licht an.")).toBeVisible();
+  });
+
+  it("hides empty sections while searching or filtering courses", async () => {
+    window.history.replaceState({}, "", "/bibliothek");
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole("textbox", { name: "Bibliothek durchsuchen" }), "Mastermind");
+    expect(screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"))).toEqual(["2. Semester"]);
+    await user.clear(screen.getByRole("textbox", { name: "Bibliothek durchsuchen" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Kurs filtern" }), "Datenbanken");
+    expect(screen.getAllByRole("region").map((section) => section.getAttribute("aria-label"))).toEqual(["3. Semester"]);
+    await user.type(screen.getByRole("textbox", { name: "Bibliothek durchsuchen" }), "xyzxyz");
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    expect(screen.getByText("Keine passenden Lernangebote")).toBeVisible();
+  });
+});
+
 describe("learning app navigation", () => {
   it("shows the ordered subject paths and transparent weekly plan with a working next-step action", async () => {
     window.history.replaceState({}, "", "/uebersicht");

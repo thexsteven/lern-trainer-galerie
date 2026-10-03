@@ -35,6 +35,19 @@ test("catalog exposes every usable learning offer through a unique stable slug",
   assert.equal(findLearningItemBySlug("cyk-verstehen")?.kind, "lab");
 });
 
+test("every offer belongs to its confirmed semester or private section", () => {
+  const catalog = getLearningCatalog();
+  assert.equal(catalog.filter((item) => item.semester === 3).length, 25);
+  assert.equal(catalog.filter((item) => item.semester === 2).length, 22);
+  assert.equal(catalog.filter((item) => item.semester === 1).length, 0);
+  assert.deepEqual(catalog.filter((item) => item.semester === null).map((item) => item.slug).sort(), [
+    "business-systeme", "compiler-parser", "entscheidungs-dashboard", "pipeline-orchestrierung",
+  ]);
+  assert.ok(catalog.every((item) => [3, 2, null].includes(item.semester)));
+  assert.equal(findLearningItemBySlug("datenbanken").semester, 3);
+  assert.equal(findLearningItemBySlug("analysis-klausur").semester, 2);
+});
+
 test("every React trainer and archived component is reachable through the catalog", async () => {
   const discoveredFiles = (
     await Promise.all([
